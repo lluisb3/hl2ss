@@ -17,29 +17,30 @@ import hl2ss_utilities
 # Settings --------------------------------------------------------------------
 
 # HoloLens address
-host = '192.168.1.7'
+host = '153.109.130.56'
+
 
 # Output directory
-path = './data'
+path = '/home/ither1/hl2ss/data/try'
 
 # Unpack to viewable formats (e.g., encoded video to mp4)
 unpack = True
 
 # Ports to record
 ports = [
-    #hl2ss.StreamPort.RM_VLC_LEFTFRONT,
-    #hl2ss.StreamPort.RM_VLC_LEFTLEFT,
-    #hl2ss.StreamPort.RM_VLC_RIGHTFRONT,
-    #hl2ss.StreamPort.RM_VLC_RIGHTRIGHT,
-    #hl2ss.StreamPort.RM_DEPTH_AHAT,
-    #hl2ss.StreamPort.RM_DEPTH_LONGTHROW,
-    #hl2ss.StreamPort.RM_IMU_ACCELEROMETER,
-    #hl2ss.StreamPort.RM_IMU_GYROSCOPE,
-    #hl2ss.StreamPort.RM_IMU_MAGNETOMETER,
-    hl2ss.StreamPort.PERSONAL_VIDEO,
-    #hl2ss.StreamPort.MICROPHONE,
-    #hl2ss.StreamPort.SPATIAL_INPUT,
-    #hl2ss.StreamPort.EXTENDED_EYE_TRACKER,
+    hl2ss.StreamPort.RM_VLC_LEFTFRONT,
+    hl2ss.StreamPort.RM_VLC_LEFTLEFT,
+    hl2ss.StreamPort.RM_VLC_RIGHTFRONT,
+    hl2ss.StreamPort.RM_VLC_RIGHTRIGHT,
+    hl2ss.StreamPort.RM_DEPTH_AHAT,
+    # hl2ss.StreamPort.RM_DEPTH_LONGTHROW,
+    hl2ss.StreamPort.RM_IMU_ACCELEROMETER,
+    hl2ss.StreamPort.RM_IMU_GYROSCOPE,
+    hl2ss.StreamPort.RM_IMU_MAGNETOMETER,
+    # hl2ss.StreamPort.PERSONAL_VIDEO,
+    hl2ss.StreamPort.MICROPHONE,
+    hl2ss.StreamPort.SPATIAL_INPUT,
+    hl2ss.StreamPort.EXTENDED_EYE_TRACKER,
     hl2ss.StreamPort.EXTENDED_AUDIO,
     ]
 

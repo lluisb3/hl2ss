@@ -113,12 +113,15 @@ def rx_rm_imu(host, port, chunk=hl2ss.ChunkSize.RM_IMU, mode=hl2ss.StreamMode.MO
 
 
 def rx_pv(host, port, chunk=hl2ss.ChunkSize.PERSONAL_VIDEO, mode=hl2ss.StreamMode.MODE_1, width=1920, height=1080, framerate=30, divisor=1, profile=hl2ss.VideoProfile.H265_MAIN, level=hl2ss.H26xLevel.DEFAULT, bitrate=None, options=None, decoded_format='bgr24'):
+    print("Step 51")
+    print(hl2ss.ChunkSize.PERSONAL_VIDEO)
     if (bitrate is None):
         bitrate = get_video_codec_default_bitrate(width, height, framerate, divisor, profile)
-
+        print("Step 52")
     if (options is None):
         options = get_video_codec_default_options(width, height, framerate, divisor, profile)
-    
+        print("Step 53")
+    print("Step 54")
     return hl2ss.rx_decoded_pv(host, port, chunk, mode, width, height, framerate, divisor, profile, level, bitrate, options, decoded_format) if (decoded_format) else hl2ss.rx_pv(host, port, chunk, mode, width, height, framerate, divisor, profile, level, bitrate, options)
 
 

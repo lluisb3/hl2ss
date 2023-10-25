@@ -18,13 +18,14 @@ import hl2ss_lnm
 # Settings --------------------------------------------------------------------
 
 # HoloLens address
-host = "192.168.1.7"
+# host = '153.109.130.56'
+host = '153.109.130.56'
 
 # Operating mode
 # 0: video
 # 1: video + camera pose
 # 2: query calibration (single transfer)
-mode = hl2ss.StreamMode.MODE_1
+mode = hl2ss.StreamMode.MODE_0
 
 # Enable Mixed Reality Capture (Holograms)
 enable_mrc = False
@@ -49,11 +50,12 @@ profile = hl2ss.VideoProfile.H265_MAIN
 # 'rgba'
 # 'gray8'
 decoded_format = 'bgr24'
-
+print("Step 1")
 #------------------------------------------------------------------------------
 
-hl2ss_lnm.start_subsystem_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO, enable_mrc=enable_mrc)
 
+hl2ss_lnm.start_subsystem_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO, enable_mrc=enable_mrc)
+print("Step 2")
 if (mode == hl2ss.StreamMode.MODE_2):
     data = hl2ss_lnm.download_calibration_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO, width, height, framerate)
     print('Calibration')
@@ -66,19 +68,20 @@ if (mode == hl2ss.StreamMode.MODE_2):
     print('Intrinsics')
     print(data.intrinsics)
 else:
+    print("Step 3")
     enable = True
 
     def on_press(key):
         global enable
         enable = key != keyboard.Key.esc
         return enable
-
+    print("Step 4")
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
-
+    print("Step 5")
     client = hl2ss_lnm.rx_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO, mode=mode, width=width, height=height, framerate=framerate, divisor=divisor, profile=profile, decoded_format=decoded_format)
     client.open()
-
+    print("Step 6")
     while (enable):
         data = client.get_next_packet()
 
@@ -92,5 +95,6 @@ else:
 
     client.close()
     listener.join()
-
+print("Step 7")
 hl2ss_lnm.stop_subsystem_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO)
+print("End")

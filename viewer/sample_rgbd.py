@@ -19,13 +19,13 @@ import hl2ss_3dcv
 #------------------------------------------------------------------------------
 
 # HoloLens address
-host = '192.168.1.7'
+host = '153.109.130.56'
 
 # Port: RM Depth AHAT or RM Depth Long Throw
 port = hl2ss.StreamPort.RM_DEPTH_LONGTHROW
 
 # Calibration path (must exist but can be empty)
-calibration_path = '../calibration'
+calibration_path = '/home/ither1/hl2ss/calibration'
 
 # Use AB data to color the pointcloud
 use_ab = False
@@ -37,33 +37,42 @@ ht_profile_ab = hl2ss.VideoProfile.H265_MAIN
 # Buffer length in seconds
 buffer_length = 10
 
+print("Step 1")
 #------------------------------------------------------------------------------
 
 if __name__ == '__main__':
     # Keyboard events ---------------------------------------------------------
     enable = True
 
+    print("Step 2")
+
     def on_press(key):
         global enable
         enable = key != keyboard.Key.space
         return enable
 
+    print("Step 3")
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
 
+    print("Step 4")
     # Get calibration ---------------------------------------------------------
     # Calibration data will be downloaded if it's not in the calibration folder
     calibration = hl2ss_3dcv.get_calibration_rm(host, port, calibration_path)
+    print("Step 41")
     xy1, scale = hl2ss_3dcv.rm_depth_compute_rays(calibration.uv2xy, calibration.scale)
+    print("Step 42")
     max_depth = 8.0 if (port == hl2ss.StreamPort.RM_DEPTH_LONGTHROW) else (calibration.alias / calibration.scale)
+    print("Step 43")
     fps = hl2ss.Parameters_RM_DEPTH_LONGTHROW.FPS if (port == hl2ss.StreamPort.RM_DEPTH_LONGTHROW) else hl2ss.Parameters_RM_DEPTH_AHAT.FPS
 
+    print("Step 5")
     # Create Open3D visualizer ------------------------------------------------
     vis = o3d.visualization.Visualizer()
     vis.create_window()
     pcd = o3d.geometry.PointCloud()
     first_pcd = True
-
+    print("Step 6")
     # Start stream ------------------------------------------------------------
     producer = hl2ss_mp.producer()
     producer.configure(hl2ss.StreamPort.RM_DEPTH_AHAT, hl2ss_lnm.rx_rm_depth_ahat(host, hl2ss.StreamPort.RM_DEPTH_AHAT, profile_z=ht_profile_z, profile_ab=ht_profile_ab))

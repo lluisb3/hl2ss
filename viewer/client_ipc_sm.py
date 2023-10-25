@@ -11,7 +11,7 @@ import hl2ss_sa
 # Settings --------------------------------------------------------------------
 
 # HoloLens address
-host = '192.168.1.7'
+host = '153.109.130.56'
 
 # Maximum triangles per cubic meter
 tpcm = 1000

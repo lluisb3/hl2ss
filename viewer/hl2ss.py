@@ -603,9 +603,13 @@ class _PVCNT:
 
 
 def start_subsystem_pv(host, port, enable_mrc, hologram_composition, recording_indicator, video_stabilization, blank_protected, show_mesh, global_opacity, output_width, output_height, video_stabilization_length, hologram_perspective):
+    print("Step 11")
     c = _client()
+    print("Step 12")
     c.open(host, port)
+    print("Step 13")
     c.sendall(_create_configuration_for_pv_mode2(_PVCNT.START | _PVCNT.MODE_3, 1920, 1080, 30))
+    print("Step 14")
     c.sendall(_create_configuration_for_mrc_video(enable_mrc, hologram_composition, recording_indicator, video_stabilization, blank_protected, show_mesh, global_opacity, output_width, output_height, video_stabilization_length, hologram_perspective))
     c.close()
 
@@ -1382,15 +1386,23 @@ class rx_decoded_pv(rx_pv):
         self.format = format
         self._codec = decode_pv(profile)
 
-    def open(self):        
+    def open(self):
+        print("Step 511")        
         self._codec.create(self.width, self.height)
+        print("Step 512")
         super().open()
+        print("Step 513")
         self.get_next_packet()
+        print("Step 514")
 
     def get_next_packet(self):
+        print("Step 515")
         data = super().get_next_packet()
+        print("Step 516")
         data.payload = unpack_pv(data.payload)
+        print("Step 517")
         data.payload.image = self._codec.decode(data.payload.image, self.format)
+        print("Step 518")
         return data
 
     def close(self):

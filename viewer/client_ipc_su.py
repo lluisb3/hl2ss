@@ -12,7 +12,7 @@ import hl2ss_sa
 # Settings --------------------------------------------------------------------
 
 # HoloLens address
-host = '192.168.1.7'
+host = '153.109.130.58'
 
 # Query parameters
 enable_scene_object_quads = True
