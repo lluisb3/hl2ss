@@ -22,7 +22,7 @@ thispath = Path(__file__).resolve()
 # HoloLens address
 host = '153.109.130.56'
 
-exp_name = 'pointcloud'
+exp_name = 'pointcloud_v2'
 # Output directory
 path = f'{thispath.parent.parent}/data/{exp_name}'
 

@@ -14,7 +14,7 @@ thispath = Path(__file__).resolve()
 
 
 # Settings --------------------------------------------------------------------
-exp_name = 'pointcloud'
+exp_name = 'pointcloud_v2'
 
 # Directory containing the recorded data
 path = f'{thispath.parent.parent}/data/{exp_name}'

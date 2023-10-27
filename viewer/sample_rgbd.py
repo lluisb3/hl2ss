@@ -16,7 +16,7 @@ import hl2ss_lnm
 import hl2ss_mp
 import hl2ss_3dcv
 
-#------------------------------------------------------------------------------
+# Settings --------------------------------------------------------------------
 
 # HoloLens address
 host = '153.109.130.56'
@@ -104,6 +104,7 @@ if __name__ == '__main__':
         rgb = np.hstack((rgb, rgb, rgb))
 
         pcd.points = o3d.utility.Vector3dVector(xyz)
+
         if (use_ab):
             pcd.colors = o3d.utility.Vector3dVector(rgb)
 
