@@ -20,6 +20,7 @@ import hl2ss_3dcv
 
 # HoloLens address
 host = '153.109.130.56'
+host = '192.168.1.17'
 
 # Port: RM Depth AHAT or RM Depth Long Throw
 port = hl2ss.StreamPort.RM_DEPTH_LONGTHROW
