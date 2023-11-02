@@ -46,10 +46,10 @@ max_depth = 3.0
 # Voxel size foe downsampling
 voxel_size = 0.02
 
-def pairwise_registration(source, target, max_correspondence_distance_coarse, max_correspondence_distance_fine):
+def pairwise_registration(source, target, result_ransac, max_correspondence_distance_coarse, max_correspondence_distance_fine):
     print("Apply point-to-plane ICP")
     icp_coarse = o3d.pipelines.registration.registration_icp(
-        source, target, max_correspondence_distance_coarse, np.identity(4),
+        source, target, max_correspondence_distance_coarse, result_ransac.transformation,
         o3d.pipelines.registration.TransformationEstimationPointToPlane())
     icp_fine = o3d.pipelines.registration.registration_icp(
         source, target, max_correspondence_distance_fine,
@@ -62,7 +62,7 @@ def pairwise_registration(source, target, max_correspondence_distance_coarse, ma
     return transformation_icp, information_icp
 
 
-def full_registration(pcds, max_correspondence_distance_coarse,
+def full_registration(pcds, pcds_fpfh, max_correspondence_distance_coarse,
                       max_correspondence_distance_fine):
     pose_graph = o3d.pipelines.registration.PoseGraph()
     odometry = np.identity(4)
@@ -70,8 +70,11 @@ def full_registration(pcds, max_correspondence_distance_coarse,
     n_pcds = len(pcds)
     for source_id in range(n_pcds):
         for target_id in range(source_id + 1, n_pcds):
+            result_fast = execute_fast_global_registration(pcds[source_id], pcds[target_id],
+                                               pcds_fpfh[source_id], pcds_fpfh[target_id],
+                                               voxel_size)
             transformation_icp, information_icp = pairwise_registration(
-                pcds[source_id], pcds[target_id], max_correspondence_distance_coarse, max_correspondence_distance_fine)
+                pcds[source_id], pcds[target_id], result_fast, max_correspondence_distance_coarse, max_correspondence_distance_fine)
             print("Build o3d.pipelines.registration.PoseGraph")
             if target_id == source_id + 1:  # odometry case
                 odometry = np.dot(transformation_icp, odometry)
@@ -93,8 +96,35 @@ def full_registration(pcds, max_correspondence_distance_coarse,
                                                              uncertain=True))
     return pose_graph
 
+def execute_fast_global_registration(source_down, target_down, source_fpfh,
+                                     target_fpfh, voxel_size):
+    distance_threshold = voxel_size * 0.5
+    print(":: Apply fast global registration with distance threshold %.3f" \
+            % distance_threshold)
+    result = o3d.pipelines.registration.registration_fast_based_on_feature_matching(
+        source_down, target_down, source_fpfh, target_fpfh,
+        o3d.pipelines.registration.FastGlobalRegistrationOption(
+            maximum_correspondence_distance=distance_threshold))
+    return result
+
+def preprocess_point_cloud(pcd, voxel_size):
+    print(":: Downsample with a voxel size %.3f." % voxel_size)
+    pcd_down = pcd.voxel_down_sample(voxel_size)
+
+    radius_normal = voxel_size * 2
+    print(":: Estimate normal with search radius %.3f." % radius_normal)
+    pcd_down.estimate_normals(
+        o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30))
+
+    radius_feature = voxel_size * 5
+    print(":: Compute FPFH feature with search radius %.3f." % radius_feature)
+    pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(
+        pcd_down,
+        o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=100))
+    return pcd_down, pcd_fpfh
+
 #------------------------------------------------------------------------------
-start_time = time.time()
+start = time.time()
 # Get calibration ---------------------------------------------------------
 # Get RM Depth Long Throw calibration -------------------------------------
     # Calibration data will be downloaded if it's not in the calibration folder
@@ -117,24 +147,22 @@ pcd = o3d.geometry.PointCloud()
 
 # Create readers --------------------------------------------------------------
 rd_pv = hl2ss_io.create_rd(f'{path}/{hl2ss.get_port_name(hl2ss.StreamPort.PERSONAL_VIDEO)}.bin', hl2ss.ChunkSize.SINGLE_TRANSFER, 'bgr24')
-rd_lf = hl2ss_io.sequencer(f'{path}/{hl2ss.get_port_name(hl2ss.StreamPort.RM_VLC_LEFTFRONT)}.bin', hl2ss.ChunkSize.SINGLE_TRANSFER, True)
-rd_rf = hl2ss_io.sequencer(f'{path}/{hl2ss.get_port_name(hl2ss.StreamPort.RM_VLC_RIGHTFRONT)}.bin', hl2ss.ChunkSize.SINGLE_TRANSFER, True)
 rd_depth = hl2ss_io.sequencer(f'{path}/{hl2ss.get_port_name(hl2ss.StreamPort.RM_DEPTH_LONGTHROW)}.bin', hl2ss.ChunkSize.SINGLE_TRANSFER, True)
 # rd_depth = hl2ss_io.create_rd(f'{path}/{hl2ss.get_port_name(hl2ss.StreamPort.RM_DEPTH_LONGTHROW)}.bin', hl2ss.ChunkSize.SINGLE_TRANSFER, 'bgr24')
 
 # Open readers ----------------------------------------------------------------
 rd_pv.open()
-rd_lf.open()
-rd_rf.open()
 rd_depth.open()
-
-pcds = []
-pcd_combined = o3d.geometry.PointCloud()
 
 # Initialize PV intrinsics and extrinsics ---------------------------------
 pv_intrinsics = hl2ss.create_pv_intrinsics_placeholder()
 pv_extrinsics = np.eye(4, 4, dtype=np.float32)
 
+pcds = []
+pcds_fpfh = []
+pcd_combined = o3d.geometry.PointCloud()
+
+i = 0
 # Main loop -------------------------------------------------------------------
 while (True):
     # Get PV frame ------------------------------------------------------------
@@ -143,8 +171,6 @@ while (True):
         break
 
     # Find RM VLC frames corresponding to the current PV frame ----------------
-    data_lf = rd_lf.get_next_packet(data_pv.timestamp) # Get nearest (in time) lf frame
-    data_rf = rd_rf.get_next_packet(data_pv.timestamp) # Get nearest (in time) rf frame
     data_depth = rd_depth.get_next_packet(data_pv.timestamp)
 
     if (data_depth is not None):
@@ -181,6 +207,8 @@ while (True):
 
         tmp_pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd, o3d_lt_intrinsics)
 
+        tmp_pcd.transform([[1,0,0,0],[0,-1,0,0],[0,0,-1,0],[0,0,0,1]])
+
         # Display pointcloud --------------------------------------------------
         pcd.points = tmp_pcd.points
         pcd.colors = tmp_pcd.colors
@@ -196,12 +224,16 @@ while (True):
 
         # pcd.points = o3d.utility.Vector3dVector(xyz)
 
-        pcd.transform([[1,0,0,0],[0,-1,0,0],[0,0,-1,0],[0,0,0,1]])
+        # pcd.estimate_normals()
 
-        pcd.estimate_normals()
+        pcd_down, pcd_fpfh = preprocess_point_cloud(pcd, voxel_size)
 
         # pcd_combined += pcd
-        pcds.append(pcd)
+        if i % 2 == 0:
+            pcds.append(pcd_down)
+            pcds_fpfh.append(pcd_fpfh)
+
+        i += 1
 
     # if (first_pcd):
     #     vis.add_geometry(pcd)
@@ -215,32 +247,13 @@ while (True):
     # if (use_ab):
     #     pcd.colors = o3d.utility.Vector3dVector(rgb)
 
-    # if (first_pcd):
-    #     vis.add_geometry(pcd)
-    #     first_pcd = False
-    # else:
-    #     vis.update_geometry(pcd)
-
-    # vis.poll_events()
-    # vis.update_renderer()
-
-    # pcd.points = o3d.utility.Vector3dVector(points)
-    # pcd.colors = o3d.utility.Vector3dVector(colors)
-
-
-    # image_o3d = o3d.geometry.Image(image)
-    # print(image_o3d)
-    # depth_o3d = o3d.geometry.Depth(depth)
-    # rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(image_o3d, depth_o3d)
-
-    
 print(len(pcds))
 print("Full registration ...")
 max_correspondence_distance_coarse = voxel_size * 15
 max_correspondence_distance_fine = voxel_size * 1.5
 with o3d.utility.VerbosityContextManager(
         o3d.utility.VerbosityLevel.Debug) as cm:
-    pose_graph = full_registration(pcds,
+    pose_graph = full_registration(pcds, pcds_fpfh,
                                    max_correspondence_distance_coarse,
                                    max_correspondence_distance_fine)
 print("Optimizing PoseGraph ...")
@@ -270,4 +283,7 @@ rd_lf.close()
 rd_rf.close()
 rd_depth.close()
 
-print(f" Time to complete script: {(time.time()-start_time)}")
+end = time.time()
+hours, rem = divmod(end-start, 3600)
+minutes, seconds = divmod(rem, 60)
+print(f"{int(hours)}:{int(minutes)}:{seconds}")

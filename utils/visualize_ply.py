@@ -6,7 +6,7 @@ thispath = Path(__file__).resolve()
 
 
 filename = "multiway_registration.ply"
-exp_name = "pointcloud_ita"
+exp_name = "pointcloud_v2"
 
 path = f"{thispath.parent.parent}/data/{exp_name}"
 
