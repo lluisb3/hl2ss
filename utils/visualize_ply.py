@@ -5,8 +5,8 @@ from pathlib import Path
 thispath = Path(__file__).resolve()
 
 
-filename = "multiway_registration.ply"
-exp_name = "pointcloud_v2"
+filename = "pcd_scene.ply"
+exp_name = "try_scene"
 
 path = f"{thispath.parent.parent}/data/{exp_name}"
 

@@ -15,14 +15,17 @@ import hl2ss_lnm
 import hl2ss_mp
 import hl2ss_3dcv
 import hl2ss_sa
+from pathlib import Path
+
+thispath = Path(__file__).resolve()
 
 # Settings --------------------------------------------------------------------
 
 # HoloLens address
-host = '192.168.1.7'
+host = '153.109.130.57'
 
 # Calibration path (must exist but can be empty)
-calibration_path = '../calibration'
+calibration_path = f'{thispath.parent.parent}/calibration'
 
 # Camera parameters
 pv_width = 640

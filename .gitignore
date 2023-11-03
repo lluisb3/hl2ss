@@ -24,4 +24,3 @@ extensions/client_matlab/.vscode/
 calibration/*
 !/calibration/README.md
 data/*
-note/*

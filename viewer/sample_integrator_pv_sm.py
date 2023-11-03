@@ -15,14 +15,20 @@ import hl2ss_lnm
 import hl2ss_mp
 import hl2ss_3dcv
 import hl2ss_sa
+from pathlib import Path
+import click
+
+thispath = Path(__file__).resolve()
+
 
 # Settings --------------------------------------------------------------------
-
 # HoloLens address
-host = '192.168.1.7'
+host = '153.109.130.57'
+
+exp_name = "try_scene"
 
 # Calibration path (must exist but can be empty)
-calibration_path = '../calibration'
+calibration_path = f'{thispath.parent.parent}/calibration'
 
 # Camera parameters
 pv_width = 640
@@ -47,15 +53,18 @@ origin = [0, 0, 0]
 radius = 0.5
 
 #------------------------------------------------------------------------------
-
-if __name__ == '__main__':
-    # Keyboard events ---------------------------------------------------------
-    enable = True
-
-    def on_press(key):
+def on_press(key):
         global enable
         enable = key != keyboard.Key.space
         return enable
+
+# Output folder
+output_path = f"{thispath.parent.parent}/data/{exp_name}"
+Path(output_path).mkdir(parents=True, exist_ok=True)
+
+# Keyboard events ---------------------------------------------------------
+if __name__ == '__main__':
+    enable = True
 
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
@@ -124,7 +133,6 @@ if __name__ == '__main__':
         _, data_lt = sink_lt.get_most_recent_frame()
         if ((data_lt is None) or (not hl2ss.is_valid_pose(data_lt.pose))):
             continue
-
         _, data_pv = sink_pv.get_nearest(data_lt.timestamp)
         if ((data_pv is None) or (not hl2ss.is_valid_pose(data_pv.pose))):
             continue
@@ -184,6 +192,8 @@ if __name__ == '__main__':
 
     # Stop keyboard events ----------------------------------------------------
     listener.join()
+
+    o3d.io.write_point_cloud(f"{output_path}/pcd_scene.ply", pcd)
 
     # Show final point cloud --------------------------------------------------
     vis.run()

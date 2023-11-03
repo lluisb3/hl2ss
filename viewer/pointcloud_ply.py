@@ -1,13 +1,7 @@
-from pynput import keyboard
-
-import multiprocessing as mp
 import numpy as np
 import open3d as o3d
 import cv2
-import hl2ss_imshow
 import hl2ss
-import hl2ss_lnm
-import hl2ss_mp
 import hl2ss_3dcv
 import hl2ss_io
 from pathlib import Path
@@ -24,10 +18,13 @@ host = '192.168.1.14'
 # Port: RM Depth AHAT or RM Depth Long Throw
 port = hl2ss.StreamPort.RM_DEPTH_LONGTHROW
 
-exp_name = 'pointcloud'
+exp_name = 'pointcloud_ita'
 
 # Directory containing the recorded data
 path = f'{thispath.parent.parent}/data/{exp_name}'
+
+pcd_folder = Path(f"{path}/pcd_all_v2")
+Path(pcd_folder).mkdir(parents=True, exist_ok=True)
 
 # Calibration path (must exist but can be empty)
 calibration_path = f'{thispath.parent.parent}/calibration'
@@ -44,54 +41,17 @@ buffer_length = 10
 max_depth = 3.0
 
 # Voxel size foe downsampling
-voxel_size = 0.02
+voxel_size = 0.002
 
-def pairwise_registration(source, target, max_correspondence_distance_coarse, max_correspondence_distance_fine):
-    print("Apply point-to-plane ICP")
-    icp_coarse = o3d.pipelines.registration.registration_icp(
-        source, target, max_correspondence_distance_coarse, np.identity(4),
-        o3d.pipelines.registration.TransformationEstimationPointToPlane())
-    icp_fine = o3d.pipelines.registration.registration_icp(
-        source, target, max_correspondence_distance_fine,
-        icp_coarse.transformation,
-        o3d.pipelines.registration.TransformationEstimationPointToPlane())
-    transformation_icp = icp_fine.transformation
-    information_icp = o3d.pipelines.registration.get_information_matrix_from_point_clouds(
-        source, target, max_correspondence_distance_fine,
-        icp_fine.transformation)
-    return transformation_icp, information_icp
+def preprocess_point_cloud(pcd, voxel_size):
+    print(":: Downsample with a voxel size %.3f." % voxel_size)
+    pcd_down = pcd.voxel_down_sample(voxel_size)
 
-
-def full_registration(pcds, max_correspondence_distance_coarse,
-                      max_correspondence_distance_fine):
-    pose_graph = o3d.pipelines.registration.PoseGraph()
-    odometry = np.identity(4)
-    pose_graph.nodes.append(o3d.pipelines.registration.PoseGraphNode(odometry))
-    n_pcds = len(pcds)
-    for source_id in range(n_pcds):
-        for target_id in range(source_id + 1, n_pcds):
-            transformation_icp, information_icp = pairwise_registration(
-                pcds[source_id], pcds[target_id], max_correspondence_distance_coarse, max_correspondence_distance_fine)
-            print("Build o3d.pipelines.registration.PoseGraph")
-            if target_id == source_id + 1:  # odometry case
-                odometry = np.dot(transformation_icp, odometry)
-                pose_graph.nodes.append(
-                    o3d.pipelines.registration.PoseGraphNode(
-                        np.linalg.inv(odometry)))
-                pose_graph.edges.append(
-                    o3d.pipelines.registration.PoseGraphEdge(source_id,
-                                                             target_id,
-                                                             transformation_icp,
-                                                             information_icp,
-                                                             uncertain=False))
-            else:  # loop closure case
-                pose_graph.edges.append(
-                    o3d.pipelines.registration.PoseGraphEdge(source_id,
-                                                             target_id,
-                                                             transformation_icp,
-                                                             information_icp,
-                                                             uncertain=True))
-    return pose_graph
+    radius_normal = voxel_size * 2
+    print(":: Estimate normal with search radius %.3f." % radius_normal)
+    pcd_down.estimate_normals(
+        o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30))
+    return pcd_down
 
 #------------------------------------------------------------------------------
 start_time = time.time()
@@ -117,16 +77,13 @@ pcd = o3d.geometry.PointCloud()
 
 # Create readers --------------------------------------------------------------
 rd_pv = hl2ss_io.create_rd(f'{path}/{hl2ss.get_port_name(hl2ss.StreamPort.PERSONAL_VIDEO)}.bin', hl2ss.ChunkSize.SINGLE_TRANSFER, 'bgr24')
-rd_lf = hl2ss_io.sequencer(f'{path}/{hl2ss.get_port_name(hl2ss.StreamPort.RM_VLC_LEFTFRONT)}.bin', hl2ss.ChunkSize.SINGLE_TRANSFER, True)
-rd_rf = hl2ss_io.sequencer(f'{path}/{hl2ss.get_port_name(hl2ss.StreamPort.RM_VLC_RIGHTFRONT)}.bin', hl2ss.ChunkSize.SINGLE_TRANSFER, True)
 rd_depth = hl2ss_io.sequencer(f'{path}/{hl2ss.get_port_name(hl2ss.StreamPort.RM_DEPTH_LONGTHROW)}.bin', hl2ss.ChunkSize.SINGLE_TRANSFER, True)
-# rd_depth = hl2ss_io.create_rd(f'{path}/{hl2ss.get_port_name(hl2ss.StreamPort.RM_DEPTH_LONGTHROW)}.bin', hl2ss.ChunkSize.SINGLE_TRANSFER, 'bgr24')
+rd_spatial = hl2ss_io.sequencer(f'{path}/{hl2ss.get_port_name(hl2ss.StreamPort.SPATIAL_INPUT)}.bin', hl2ss.ChunkSize.SINGLE_TRANSFER, True)
 
 # Open readers ----------------------------------------------------------------
 rd_pv.open()
-rd_lf.open()
-rd_rf.open()
 rd_depth.open()
+rd_spatial.open()
 
 pcds = []
 pcd_combined = o3d.geometry.PointCloud()
@@ -135,6 +92,7 @@ pcd_combined = o3d.geometry.PointCloud()
 pv_intrinsics = hl2ss.create_pv_intrinsics_placeholder()
 pv_extrinsics = np.eye(4, 4, dtype=np.float32)
 
+i = 0
 # Main loop -------------------------------------------------------------------
 while (True):
     # Get PV frame ------------------------------------------------------------
@@ -143,9 +101,15 @@ while (True):
         break
 
     # Find RM VLC frames corresponding to the current PV frame ----------------
-    data_lf = rd_lf.get_next_packet(data_pv.timestamp) # Get nearest (in time) lf frame
-    data_rf = rd_rf.get_next_packet(data_pv.timestamp) # Get nearest (in time) rf frame
     data_depth = rd_depth.get_next_packet(data_pv.timestamp)
+    data_spatial = rd_spatial.get_next_packet(data_pv.timestamp)
+
+    if (data_spatial is not None):
+        spatial = hl2ss.unpack_si(data_spatial.payload)
+        head_pose = spatial.get_head_pose()
+        head_position = head_pose.position
+        head_forward = head_pose.forward
+        head_up = head_pose.up
 
     if (data_depth is not None):
         depth = hl2ss_3dcv.rm_depth_undistort(data_depth.payload.depth, calibration_lt.undistort_map)
@@ -182,26 +146,18 @@ while (True):
         tmp_pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd, o3d_lt_intrinsics)
 
         # Display pointcloud --------------------------------------------------
-        pcd.points = tmp_pcd.points
+        pcd.points = tmp_pcd.points 
         pcd.colors = tmp_pcd.colors
-
-        # # Display pointcloud --------------------------------------------------
-        # xyz = hl2ss_3dcv.rm_depth_to_points(depth, xy1)
-        # xyz = hl2ss_3dcv.block_to_list(xyz)
-        # rgb = hl2ss_3dcv.block_to_list(ab)
-        # d = hl2ss_3dcv.block_to_list(depth).reshape((-1,))
-        # xyz = xyz[d > 0, :]
-        # rgb = rgb[d > 0, :]
-        # rgb = np.hstack((rgb, rgb, rgb))
-
-        # pcd.points = o3d.utility.Vector3dVector(xyz)
 
         pcd.transform([[1,0,0,0],[0,-1,0,0],[0,0,-1,0],[0,0,0,1]])
 
-        pcd.estimate_normals()
+        pcd_down = preprocess_point_cloud(pcd, voxel_size)
+        o3d.io.write_point_cloud(f"{pcd_folder}/pcd_{i}.ply", pcd_down)
 
-        # pcd_combined += pcd
+        pcd_combined += pcd_down
         pcds.append(pcd)
+
+        i += 1
 
     # if (first_pcd):
     #     vis.add_geometry(pcd)
@@ -214,60 +170,11 @@ while (True):
 
     # if (use_ab):
     #     pcd.colors = o3d.utility.Vector3dVector(rgb)
-
-    # if (first_pcd):
-    #     vis.add_geometry(pcd)
-    #     first_pcd = False
-    # else:
-    #     vis.update_geometry(pcd)
-
-    # vis.poll_events()
-    # vis.update_renderer()
-
-    # pcd.points = o3d.utility.Vector3dVector(points)
-    # pcd.colors = o3d.utility.Vector3dVector(colors)
-
-
-    # image_o3d = o3d.geometry.Image(image)
-    # print(image_o3d)
-    # depth_o3d = o3d.geometry.Depth(depth)
-    # rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(image_o3d, depth_o3d)
-
     
-print(len(pcds))
-print("Full registration ...")
-max_correspondence_distance_coarse = voxel_size * 15
-max_correspondence_distance_fine = voxel_size * 1.5
-with o3d.utility.VerbosityContextManager(
-        o3d.utility.VerbosityLevel.Debug) as cm:
-    pose_graph = full_registration(pcds,
-                                   max_correspondence_distance_coarse,
-                                   max_correspondence_distance_fine)
-print("Optimizing PoseGraph ...")
-option = o3d.pipelines.registration.GlobalOptimizationOption(
-    max_correspondence_distance=max_correspondence_distance_fine,
-    edge_prune_threshold=0.25,
-    reference_node=0)
-with o3d.utility.VerbosityContextManager(
-        o3d.utility.VerbosityLevel.Debug) as cm:
-    o3d.pipelines.registration.global_optimization(
-        pose_graph,
-        o3d.pipelines.registration.GlobalOptimizationLevenbergMarquardt(),
-        o3d.pipelines.registration.GlobalOptimizationConvergenceCriteria(),
-        option)
-    
-
-for point_id in range(len(pcds)):
-    pcds[point_id].transform(pose_graph.nodes[point_id].pose)
-    pcd_combined += pcds[point_id]
-# pcd_combined_down = pcd_combined.voxel_down_sample(voxel_size=voxel_size)
 o3d.io.write_point_cloud(f"{path}/multiway_registration.ply", pcd_combined)
-
 
 # Close readers ---------------------------------------------------------------
 rd_pv.close()
-rd_lf.close()
-rd_rf.close()
 rd_depth.close()
 
 print(f" Time to complete script: {(time.time()-start_time)}")

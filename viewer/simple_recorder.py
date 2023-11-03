@@ -20,9 +20,9 @@ thispath = Path(__file__).resolve()
 # Settings --------------------------------------------------------------------
 
 # HoloLens address
-host = '192.168.1.14'
+host = '153.109.130.57'
 
-exp_name = 'pointcloud_ita'
+exp_name = 'pointcloud_png'
 # Output directory
 path = f'{thispath.parent.parent}/data/{exp_name}'
 
@@ -176,6 +176,7 @@ if __name__ == '__main__':
     # Unpack RM Depth Long Throw to a tar file containing Depth and AB PNGs ---
     if (hl2ss.StreamPort.RM_DEPTH_LONGTHROW in ports):
         hl2ss_utilities.unpack_to_png(filenames[hl2ss.StreamPort.RM_DEPTH_LONGTHROW], os.path.join(path, 'long_throw.tar'))
+        hl2ss_utilities.unpack_to_png(filenames[hl2ss.StreamPort.PERSONAL_VIDEO], os.path.join(path, 'personal_video.tar'))
 
     # Unpack stream metadata and numeric payloads to csv ----------------------
     for port in ports:

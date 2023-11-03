@@ -1,13 +1,7 @@
-from pynput import keyboard
-
-import multiprocessing as mp
 import numpy as np
 import open3d as o3d
 import cv2
-import hl2ss_imshow
 import hl2ss
-import hl2ss_lnm
-import hl2ss_mp
 import hl2ss_3dcv
 import hl2ss_io
 from pathlib import Path
@@ -18,13 +12,12 @@ thispath = Path(__file__).resolve()
 
 # Settings --------------------------------------------------------------------
 # HoloLens address
-# host = '153.109.130.56'
-host = '192.168.1.14'
+host = '153.109.130.54'
 
 # Port: RM Depth AHAT or RM Depth Long Throw
 port = hl2ss.StreamPort.RM_DEPTH_LONGTHROW
 
-exp_name = 'pointcloud'
+exp_name = 'pointcloud_ita'
 
 # Directory containing the recorded data
 path = f'{thispath.parent.parent}/data/{exp_name}'
@@ -44,12 +37,12 @@ buffer_length = 10
 max_depth = 3.0
 
 # Voxel size foe downsampling
-voxel_size = 0.02
+voxel_size = 0.002
 
-def pairwise_registration(source, target, result_ransac, max_correspondence_distance_coarse, max_correspondence_distance_fine):
+def pairwise_registration(source, target, max_correspondence_distance_coarse, max_correspondence_distance_fine):
     print("Apply point-to-plane ICP")
     icp_coarse = o3d.pipelines.registration.registration_icp(
-        source, target, max_correspondence_distance_coarse, result_ransac.transformation,
+        source, target, max_correspondence_distance_coarse,
         o3d.pipelines.registration.TransformationEstimationPointToPlane())
     icp_fine = o3d.pipelines.registration.registration_icp(
         source, target, max_correspondence_distance_fine,
@@ -62,7 +55,7 @@ def pairwise_registration(source, target, result_ransac, max_correspondence_dist
     return transformation_icp, information_icp
 
 
-def full_registration(pcds, pcds_fpfh, max_correspondence_distance_coarse,
+def full_registration(pcds, max_correspondence_distance_coarse,
                       max_correspondence_distance_fine):
     pose_graph = o3d.pipelines.registration.PoseGraph()
     odometry = np.identity(4)
@@ -70,11 +63,8 @@ def full_registration(pcds, pcds_fpfh, max_correspondence_distance_coarse,
     n_pcds = len(pcds)
     for source_id in range(n_pcds):
         for target_id in range(source_id + 1, n_pcds):
-            result_fast = execute_fast_global_registration(pcds[source_id], pcds[target_id],
-                                               pcds_fpfh[source_id], pcds_fpfh[target_id],
-                                               voxel_size)
             transformation_icp, information_icp = pairwise_registration(
-                pcds[source_id], pcds[target_id], result_fast, max_correspondence_distance_coarse, max_correspondence_distance_fine)
+                pcds[source_id], pcds[target_id], max_correspondence_distance_coarse, max_correspondence_distance_fine)
             print("Build o3d.pipelines.registration.PoseGraph")
             if target_id == source_id + 1:  # odometry case
                 odometry = np.dot(transformation_icp, odometry)
@@ -96,17 +86,6 @@ def full_registration(pcds, pcds_fpfh, max_correspondence_distance_coarse,
                                                              uncertain=True))
     return pose_graph
 
-def execute_fast_global_registration(source_down, target_down, source_fpfh,
-                                     target_fpfh, voxel_size):
-    distance_threshold = voxel_size * 0.5
-    print(":: Apply fast global registration with distance threshold %.3f" \
-            % distance_threshold)
-    result = o3d.pipelines.registration.registration_fast_based_on_feature_matching(
-        source_down, target_down, source_fpfh, target_fpfh,
-        o3d.pipelines.registration.FastGlobalRegistrationOption(
-            maximum_correspondence_distance=distance_threshold))
-    return result
-
 def preprocess_point_cloud(pcd, voxel_size):
     print(":: Downsample with a voxel size %.3f." % voxel_size)
     pcd_down = pcd.voxel_down_sample(voxel_size)
@@ -127,7 +106,7 @@ def preprocess_point_cloud(pcd, voxel_size):
 start = time.time()
 # Get calibration ---------------------------------------------------------
 # Get RM Depth Long Throw calibration -------------------------------------
-    # Calibration data will be downloaded if it's not in the calibration folder
+# Calibration data will be downloaded if it's not in the calibration folder
 calibration_lt = hl2ss_3dcv.get_calibration_rm(host, hl2ss.StreamPort.RM_DEPTH_LONGTHROW, calibration_path)
 
 uv2xy = hl2ss_3dcv.compute_uv2xy(calibration_lt.intrinsics, hl2ss.Parameters_RM_DEPTH_LONGTHROW.WIDTH, hl2ss.Parameters_RM_DEPTH_LONGTHROW.HEIGHT)
@@ -140,15 +119,14 @@ o3d_lt_intrinsics = o3d.camera.PinholeCameraIntrinsic(hl2ss.Parameters_RM_DEPTH_
                                                       calibration_lt.intrinsics[1, 1], 
                                                       calibration_lt.intrinsics[2, 0], 
                                                       calibration_lt.intrinsics[2, 1])
-# vis = o3d.visualization.Visualizer()
-# vis.create_window()
+vis = o3d.visualization.Visualizer()
+vis.create_window()
 pcd = o3d.geometry.PointCloud()
-# first_pcd = True
+first_pcd = True
 
 # Create readers --------------------------------------------------------------
 rd_pv = hl2ss_io.create_rd(f'{path}/{hl2ss.get_port_name(hl2ss.StreamPort.PERSONAL_VIDEO)}.bin', hl2ss.ChunkSize.SINGLE_TRANSFER, 'bgr24')
 rd_depth = hl2ss_io.sequencer(f'{path}/{hl2ss.get_port_name(hl2ss.StreamPort.RM_DEPTH_LONGTHROW)}.bin', hl2ss.ChunkSize.SINGLE_TRANSFER, True)
-# rd_depth = hl2ss_io.create_rd(f'{path}/{hl2ss.get_port_name(hl2ss.StreamPort.RM_DEPTH_LONGTHROW)}.bin', hl2ss.ChunkSize.SINGLE_TRANSFER, 'bgr24')
 
 # Open readers ----------------------------------------------------------------
 rd_pv.open()
@@ -213,39 +191,21 @@ while (True):
         pcd.points = tmp_pcd.points
         pcd.colors = tmp_pcd.colors
 
-        # # Display pointcloud --------------------------------------------------
-        # xyz = hl2ss_3dcv.rm_depth_to_points(depth, xy1)
-        # xyz = hl2ss_3dcv.block_to_list(xyz)
-        # rgb = hl2ss_3dcv.block_to_list(ab)
-        # d = hl2ss_3dcv.block_to_list(depth).reshape((-1,))
-        # xyz = xyz[d > 0, :]
-        # rgb = rgb[d > 0, :]
-        # rgb = np.hstack((rgb, rgb, rgb))
-
-        # pcd.points = o3d.utility.Vector3dVector(xyz)
-
-        # pcd.estimate_normals()
-
         pcd_down, pcd_fpfh = preprocess_point_cloud(pcd, voxel_size)
 
-        # pcd_combined += pcd
-        if i % 2 == 0:
-            pcds.append(pcd_down)
-            pcds_fpfh.append(pcd_fpfh)
+        pcds.append(pcd_down)
+        pcds_fpfh.append(pcd_fpfh)
 
-        i += 1
 
-    # if (first_pcd):
-    #     vis.add_geometry(pcd)
-    #     first_pcd = False
-    # else:
-    #     vis.update_geometry(pcd)
+    if (first_pcd):
+        vis.add_geometry(pcd)
+        first_pcd = False
+    else:
+        vis.update_geometry(pcd)
 
-    # vis.poll_events()
-    # vis.update_renderer()
+    vis.poll_events()
+    vis.update_renderer()
 
-    # if (use_ab):
-    #     pcd.colors = o3d.utility.Vector3dVector(rgb)
 
 print(len(pcds))
 print("Full registration ...")
@@ -253,7 +213,7 @@ max_correspondence_distance_coarse = voxel_size * 15
 max_correspondence_distance_fine = voxel_size * 1.5
 with o3d.utility.VerbosityContextManager(
         o3d.utility.VerbosityLevel.Debug) as cm:
-    pose_graph = full_registration(pcds, pcds_fpfh,
+    pose_graph = full_registration(pcds,
                                    max_correspondence_distance_coarse,
                                    max_correspondence_distance_fine)
 print("Optimizing PoseGraph ...")
@@ -279,8 +239,6 @@ o3d.io.write_point_cloud(f"{path}/multiway_registration.ply", pcd_combined)
 
 # Close readers ---------------------------------------------------------------
 rd_pv.close()
-rd_lf.close()
-rd_rf.close()
 rd_depth.close()
 
 end = time.time()
