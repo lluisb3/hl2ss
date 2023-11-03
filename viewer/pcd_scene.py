@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------
-# This script demonstrates how to align RGBD and Spatial Mapping data.
-# RGBD integration is dynamic.
+# This script saves a pointcloud (pcd) of a scene in .ply format
+# aligning RGBD and Spatial Mapping data.
 # Press space to stop.
 #------------------------------------------------------------------------------
 
@@ -16,7 +16,6 @@ import hl2ss_mp
 import hl2ss_3dcv
 import hl2ss_sa
 from pathlib import Path
-import click
 
 thispath = Path(__file__).resolve()
 
@@ -40,7 +39,7 @@ buffer_size = 10
 
 # Integrator parameters
 max_depth = 2.0
-voxel_size = 16.0/512.0
+voxel_size = 0.02
 block_resolution = 8
 block_count = 100000
 device = 'cpu:0'
