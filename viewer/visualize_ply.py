@@ -16,7 +16,7 @@ thispath = Path(__file__).resolve()
 )
 def main(experiment_name):
     path = f"{thispath.parent.parent}/data/{experiment_name}"
-    filename = f"pcd_{experiment_name}.ply"
+    filename = f"mesh_{experiment_name}.ply"
 
     ply_path = f"{path}/{filename}"
     scene_mask = o3d.io.read_point_cloud(ply_path)

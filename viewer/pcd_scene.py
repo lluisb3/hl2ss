@@ -17,14 +17,15 @@ import hl2ss_3dcv
 import hl2ss_sa
 from pathlib import Path
 
+
 thispath = Path(__file__).resolve()
 
 
 # Settings --------------------------------------------------------------------
 # HoloLens address
-host = '153.109.130.57'
+host = '153.109.130.78'
 
-exp_name = "try_scene"
+exp_name = "scene"
 
 # Calibration path (must exist but can be empty)
 calibration_path = f'{thispath.parent.parent}/calibration'
@@ -151,7 +152,6 @@ if __name__ == '__main__':
         world_points      = hl2ss_3dcv.transform(lt_points, lt_to_world)
         pv_uv             = hl2ss_3dcv.project(world_points, world_to_pv_image)
         color             = cv2.remap(color, pv_uv[:, :, 0], pv_uv[:, :, 1], cv2.INTER_LINEAR).astype(np.float32) #/ hl2ss._RANGEOF.U8_MAX
-
         mask_uv = hl2ss_3dcv.slice_to_block((pv_uv[:, :, 0] < 0) | (pv_uv[:, :, 0] >= pv_width) | (pv_uv[:, :, 1] < 0) | (pv_uv[:, :, 1] >= pv_height))
         depth[mask_uv] = 0
 
@@ -175,6 +175,7 @@ if __name__ == '__main__':
         else:
             pcd.points = pcd_tmp.points
             pcd.colors = pcd_tmp.colors
+
             vis.update_geometry(pcd)
 
         vis.poll_events()
@@ -192,7 +193,27 @@ if __name__ == '__main__':
     # Stop keyboard events ----------------------------------------------------
     listener.join()
 
+    # xyz = np.asarray(pcd.points)
+    # rgb = np.asarray(pcd.colors)
+
+    # new_pcd = o3d.geometry.PointCloud()
+    # new_pcd.points = o3d.utility.Vector3dVector(xyz)
+    # new_pcd.colors = o3d.utility.Vector3dVector(rgb)
+
+    pcd.colors = o3d.utility.Vector3dVector(np.clip(np.asarray(pcd.colors), 0, 1))
+    pcd.estimate_normals()
+    with o3d.utility.VerbosityContextManager(
+        o3d.utility.VerbosityLevel.Debug) as cm:
+        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+        pcd, depth=9)
+
+    mesh.vertex_colors = o3d.utility.Vector3dVector(np.clip(
+        np.asarray(mesh.vertex_colors), 0, 1))
     o3d.io.write_point_cloud(f"{output_path}/pcd_{exp_name}.ply", pcd)
+    o3d.io.write_triangle_mesh(f"{output_path}/mesh_{exp_name}.ply", mesh)
+    # ply_data = PlyData.read(f"{output_path}/mesh_{exp_name}.ply")
+    # ply_data.write(f"{output_path}/mesh_{exp_name}_v2.ply")
+    print(f"Pcd and mesh saved in {output_path}")
 
     # Show final point cloud --------------------------------------------------
     vis.run()
