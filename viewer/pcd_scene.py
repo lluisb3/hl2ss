@@ -25,7 +25,7 @@ thispath = Path(__file__).resolve()
 # HoloLens address
 host = '153.109.130.78'
 
-exp_name = "scene"
+exp_name = "scene_meeting_001_2"
 
 # Calibration path (must exist but can be empty)
 calibration_path = f'{thispath.parent.parent}/calibration'
@@ -40,7 +40,7 @@ buffer_size = 10
 
 # Integrator parameters
 max_depth = 2.0
-voxel_size = 0.02
+voxel_size = 0.01
 block_resolution = 8
 block_count = 100000
 device = 'cpu:0'
