@@ -23,9 +23,11 @@ thispath = Path(__file__).resolve()
 
 # Settings --------------------------------------------------------------------
 # HoloLens address
-host = '153.109.130.78'
+# host = '153.109.130.78'
+host = '192.168.212.9'
 
-exp_name = "scene_meeting_001_2"
+
+exp_name = "scene_small"
 
 # Calibration path (must exist but can be empty)
 calibration_path = f'{thispath.parent.parent}/calibration'

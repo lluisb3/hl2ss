@@ -3,6 +3,7 @@ import open3d.visualization.gui as gui
 from pathlib import Path
 import numpy as np
 from plyfile import PlyData
+import open3d.core as o3c
 
 
 def load_ply(filepath):
@@ -33,8 +34,8 @@ def check_properties(mesh):
     print(f"  watertight:             {watertight}")
     print(f"  orientable:             {orientable}")
 
-filename = "mesh_scene_v1.ply"
-path = f"{thispath.parent.parent}/data/try"
+filename = "mesh_scene_meeting_002_2.ply"
+path = f"{thispath.parent.parent}/data/scene_meeting_002_2"
 
 ply_path = f"{path}/{filename}"
 
@@ -46,7 +47,25 @@ print("")
 
 mesh = o3d.io.read_triangle_mesh(ply_path)
 
+points=np.asarray(mesh.vertices)
+dtype = o3d.core.float32
+p_tensor = o3d.core.Tensor(points, dtype=dtype)
+pc = o3d.t.geometry.PointCloud(p_tensor)
+# o3d.t.io.write_point_cloud("data/float32.ply", pc)
+
+# pc.estimate_normals()
+with o3d.utility.VerbosityContextManager(
+    o3d.utility.VerbosityLevel.Debug) as cm:
+    mesh, densities = o3d.t.geometry.TriangleMesh.create_from_point_cloud_poisson(
+    pc, depth=9)
+o3d.t.io.write_triangle_mesh("data/mesh_float32.ply", mesh)
+
+
 print(mesh)
+print(type(mesh))
+print(type(mesh.vertices))
+print(type(mesh.triangles))
+print(type(mesh.vertex_colors))
 print("")
 print(np.asarray(mesh.vertices))
 print("")
