@@ -33,12 +33,16 @@ exp_name = "scene_small"
 calibration_path = f'{thispath.parent.parent}/calibration'
 
 # Camera parameters
-pv_width = 640
-pv_height = 360
+pv_width = 1296
+pv_height = 968
 pv_framerate = 30
 
 # Buffer length in seconds
-buffer_size = 10
+# buffer_size = 10
+depth_fps = 30
+depth_width = 640
+depth_height = 480
+
 
 # Integrator parameters
 max_depth = 2.0
@@ -84,7 +88,7 @@ if __name__ == '__main__':
     # Get calibration ---------------------------------------------------------
     calibration_lt = hl2ss_3dcv.get_calibration_rm(host, hl2ss.StreamPort.RM_DEPTH_LONGTHROW, calibration_path)
     
-    uv2xy = hl2ss_3dcv.compute_uv2xy(calibration_lt.intrinsics, hl2ss.Parameters_RM_DEPTH_LONGTHROW.WIDTH, hl2ss.Parameters_RM_DEPTH_LONGTHROW.HEIGHT)
+    uv2xy = hl2ss_3dcv.compute_uv2xy(calibration_lt.intrinsics, depth_width, depth_height)
     xy1, scale = hl2ss_3dcv.rm_depth_compute_rays(uv2xy, calibration_lt.scale)
 
     # Get SM data -------------------------------------------------------------
@@ -107,8 +111,8 @@ if __name__ == '__main__':
     producer = hl2ss_mp.producer()
     producer.configure(hl2ss.StreamPort.PERSONAL_VIDEO, hl2ss_lnm.rx_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO, width=pv_width, height=pv_height, framerate=pv_framerate, decoded_format='rgb24'))
     producer.configure(hl2ss.StreamPort.RM_DEPTH_LONGTHROW, hl2ss_lnm.rx_rm_depth_longthrow(host, hl2ss.StreamPort.RM_DEPTH_LONGTHROW))
-    producer.initialize(hl2ss.StreamPort.PERSONAL_VIDEO, buffer_size * pv_framerate)
-    producer.initialize(hl2ss.StreamPort.RM_DEPTH_LONGTHROW, buffer_size * hl2ss.Parameters_RM_DEPTH_LONGTHROW.FPS)    
+    producer.initialize(hl2ss.StreamPort.PERSONAL_VIDEO, pv_framerate)
+    producer.initialize(hl2ss.StreamPort.RM_DEPTH_LONGTHROW, depth_fps)    
     producer.start(hl2ss.StreamPort.PERSONAL_VIDEO)
     producer.start(hl2ss.StreamPort.RM_DEPTH_LONGTHROW)
 
