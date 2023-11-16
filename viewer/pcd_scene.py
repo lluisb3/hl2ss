@@ -23,30 +23,32 @@ thispath = Path(__file__).resolve()
 
 # Settings --------------------------------------------------------------------
 # HoloLens address
-# host = '153.109.130.78'
-host = '192.168.212.9'
+host = '153.109.130.73'
+# host = '192.168.212.9'
 
 
-exp_name = "scene_small"
+exp_name = "scene_fps"
 
 # Calibration path (must exist but can be empty)
 calibration_path = f'{thispath.parent.parent}/calibration'
 
 # Camera parameters
-pv_width = 1296
-pv_height = 968
+pv_width = 640
+pv_height = 360
+# pv_width = 1296
+# pv_height = 968
 pv_framerate = 30
 
 # Buffer length in seconds
-# buffer_size = 10
-depth_fps = 30
-depth_width = 640
-depth_height = 480
+buffer_size = 10
+# depth_fps = 30
+# depth_width = 640
+# depth_height = 480
 
 
 # Integrator parameters
 max_depth = 2.0
-voxel_size = 0.01
+voxel_size = 0.02
 block_resolution = 8
 block_count = 100000
 device = 'cpu:0'
@@ -88,7 +90,8 @@ if __name__ == '__main__':
     # Get calibration ---------------------------------------------------------
     calibration_lt = hl2ss_3dcv.get_calibration_rm(host, hl2ss.StreamPort.RM_DEPTH_LONGTHROW, calibration_path)
     
-    uv2xy = hl2ss_3dcv.compute_uv2xy(calibration_lt.intrinsics, depth_width, depth_height)
+    # uv2xy = hl2ss_3dcv.compute_uv2xy(calibration_lt.intrinsics, depth_width, depth_height)
+    uv2xy = hl2ss_3dcv.compute_uv2xy(calibration_lt.intrinsics, hl2ss.Parameters_RM_DEPTH_LONGTHROW.WIDTH, hl2ss.Parameters_RM_DEPTH_LONGTHROW.HEIGHT)
     xy1, scale = hl2ss_3dcv.rm_depth_compute_rays(uv2xy, calibration_lt.scale)
 
     # Get SM data -------------------------------------------------------------
@@ -111,8 +114,12 @@ if __name__ == '__main__':
     producer = hl2ss_mp.producer()
     producer.configure(hl2ss.StreamPort.PERSONAL_VIDEO, hl2ss_lnm.rx_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO, width=pv_width, height=pv_height, framerate=pv_framerate, decoded_format='rgb24'))
     producer.configure(hl2ss.StreamPort.RM_DEPTH_LONGTHROW, hl2ss_lnm.rx_rm_depth_longthrow(host, hl2ss.StreamPort.RM_DEPTH_LONGTHROW))
-    producer.initialize(hl2ss.StreamPort.PERSONAL_VIDEO, pv_framerate)
-    producer.initialize(hl2ss.StreamPort.RM_DEPTH_LONGTHROW, depth_fps)    
+
+    producer.initialize(hl2ss.StreamPort.PERSONAL_VIDEO, buffer_size * pv_framerate)
+    producer.initialize(hl2ss.StreamPort.RM_DEPTH_LONGTHROW, buffer_size * hl2ss.Parameters_RM_DEPTH_LONGTHROW.FPS)   
+    # producer.initialize(hl2ss.StreamPort.PERSONAL_VIDEO, pv_framerate)
+    # producer.initialize(hl2ss.StreamPort.RM_DEPTH_LONGTHROW, depth_fps) 
+
     producer.start(hl2ss.StreamPort.PERSONAL_VIDEO)
     producer.start(hl2ss.StreamPort.RM_DEPTH_LONGTHROW)
 
@@ -171,7 +178,7 @@ if __name__ == '__main__':
         except:
             pass
 
-        pcd_tmp = integrator.extract_point_cloud(weight_threshold).to_legacy()
+        pcd_tmp = integrator.extract_point_cloud(weight_threshold).to_legacy()        
 
         # Update visualization ------------------------------------------------
         if (first_pcd):
