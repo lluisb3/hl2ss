@@ -1,25 +1,16 @@
 import open3d as o3d
 import open3d.visualization.gui as gui
-from pathlib import Path
 import click
-
-
-thispath = Path(__file__).resolve()
 
 
 @click.command()
 @click.option(
-    "--experiment_name",
-    default="scene",
-    prompt="Name of the scene to visualize",
-    help="Name of the scene to visualize",
+    "--mesh_path",
+    prompt="Path to .ply file with mesh",
+    help="Path to .ply file with mesh",
 )
-def main(experiment_name):
-    path = f"{thispath.parent.parent}/data/{experiment_name}"
-    filename = f"mesh_{experiment_name}.ply"
-
-    ply_path = f"{path}/{filename}"
-    scene_mask = o3d.io.read_point_cloud(ply_path)
+def main(mesh_path):
+    scene_mask = o3d.io.read_triangle_mesh(mesh_path)
 
     # Initialize visualizer
     app = gui.Application.instance

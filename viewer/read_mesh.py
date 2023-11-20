@@ -12,104 +12,81 @@ thispath = Path(__file__).resolve()
 def load_ply(filepath):
     plydata = PlyData.read(filepath)
     data = plydata.elements[0].data
-    coords = np.array([data['x'], data['y'], data['z']], dtype=np.float32).T
-    feats = np.array([data['red'], data['green'], data['blue']], dtype=np.float32).T
+    coords = np.array([data['x'], data['y'], data['z']], dtype=np.float32)
+    feats = np.array([data['red'], data['green'], data['blue']], dtype=np.float32)
 
     return coords, feats
 
 
-def check_properties(mesh):
-    mesh.compute_vertex_normals()
-
-    edge_manifold = mesh.is_edge_manifold(allow_boundary_edges=True)
-    edge_manifold_boundary = mesh.is_edge_manifold(allow_boundary_edges=False)
-    vertex_manifold = mesh.is_vertex_manifold()
-    self_intersecting = mesh.is_self_intersecting()
-    watertight = mesh.is_watertight()
-    orientable = mesh.is_orientable()
-
-    print(f"  edge_manifold:          {edge_manifold}")
-    print(f"  edge_manifold_boundary: {edge_manifold_boundary}")
-    print(f"  vertex_manifold:        {vertex_manifold}")
-    print(f"  self_intersecting:      {self_intersecting}")
-    print(f"  watertight:             {watertight}")
-    print(f"  orientable:             {orientable}")
-
-
 @click.command()
 @click.option(
-    "--experiment_name",
-    default="scene",
-    prompt="Name of the scene to visualize",
-    help="Name of the scene to visualize",
+    "--mesh_path",
+    default="/home/ither1/hl2ss/data/office/mesh_office.ply",
+    prompt="Path to .ply file with mesh",
+    help="Path to .ply file with mesh",
 )
-def main(experiment_name):
-    filename = f"mesh_{experiment_name}.ply"
-    path = f"{thispath.parent.parent}/data/{experiment_name}"
+@click.option(
+    "--pcd_path",
+    default="/home/ither1/hl2ss/data/scene_office_002_2/pcd_scene_office_002_2.ply",
+    prompt="Path to .ply file with pointcloud",
+    help="Path to .ply file with pointcloud",
+)
+def main(mesh_path, pcd_path):
 
-    ply_path = f"{path}/{filename}"
+    # Initialize visualizer
+    # app = gui.Application.instance
+    # app.initialize()
+    # vis = o3d.visualization.O3DVisualizer("Scene Hes·so", 1024, 768)
+    # vis.show_settings = True
 
-    coords, feats = load_ply(ply_path)
+    coords_mesh, feats_mesh = load_ply(mesh_path)
 
-    print(coords)
-    print(feats)
-    print("")
+    coords_pcd, feats_pcd = load_ply(pcd_path)
 
-    # mesh = o3d.io.read_triangle_mesh(ply_path)
+    print(coords_mesh.shape)
+    print(feats_mesh.shape)
+    print(coords_pcd.shape)
+    print(feats_pcd.shape)
 
-    # points=np.asarray(mesh.vertices)
-    # dtype = o3d.core.float32
-    # p_tensor = o3d.core.Tensor(points, dtype=dtype)
-    # pc = o3d.t.geometry.PointCloud(p_tensor)
-    # # o3d.t.io.write_point_cloud("data/float32.ply", pc)
+    # for coord_mesh, feat_mesh in zip(coords_mesh, feats_mesh):
+    #     for coord_pcd, feat_pcd in zip(coords_pcd, feats_pcd):
+    #         if coord_mesh.any() == coord_pcd.any():
+    #             print("any")
+    #             print(feat_mesh)
+    #             print(feat_pcd)
 
-    # # pc.estimate_normals()
-    # with o3d.utility.VerbosityContextManager(
-    #     o3d.utility.VerbosityLevel.Debug) as cm:
-    #     mesh, densities = o3d.t.geometry.TriangleMesh.create_from_point_cloud_poisson(
-    #     pc, depth=9)
-    # o3d.t.io.write_triangle_mesh("data/mesh_float32.ply", mesh)
+    # for coord_mesh, feat_mesh in zip(coords_mesh, feats_mesh):
+    #     for coord_pcd, feat_pcd in zip(coords_pcd, feats_pcd):
+    #         print(coord_mesh)
+    #         print(coord_pcd)
 
+    #         if coord_mesh.all() == coord_pcd.all():
+    #             print("Enter")
+                
+    mesh = o3d.io.read_triangle_mesh(mesh_path)
+    pcd = o3d.io.read_point_cloud(pcd_path)
 
-    #Read the pointcloud
-    plydata = PlyData.read(ply_path)
+    mesh.vertex_colors = pcd.colors
 
-    #go through all property one by one and if it is a double, we change it to an equivalent property in float
-    real_properties = []
-    for i in plydata.elements[0].properties:
-        if str(PlyProperty(i.name, "double")) == str(i):
-            real_properties.append(PlyProperty(i.name, "float32"))
-        else:
-            real_properties.append(i)
-    real_properties = tuple(real_properties)
+    points = np.asarray(pcd.points)
+    vertices = np.asarray(mesh.vertices)
 
-    #Save the same ply file but with float properties instead of double
-    plydata.elements[0].properties = real_properties
+    for point in points:
+        for vertex in vertices:
+            if np.array_equal(point, vertex):
+                print(point)
+                print(vertex)
 
-    #Write the data back to the original pointcloud
-    plydata.write(f"{path}/mesh_float.ply")
+    print(points)
+    print(vertices)
 
+    # # Load scene visualization    
+    # vis.add_geometry(f"Scene", mesh)
+    # vis.reset_camera_to_default()
 
-    # print(mesh)
-    # print(type(mesh))
-    # print(type(mesh.vertices))
-    # print(type(mesh.triangles))
-    # print(type(mesh.vertex_colors))
-    # print("")
-    # print(np.asarray(mesh.vertices))
-    # print("")
-    # print(np.asarray(mesh.triangles))
-    # print("")
-    # print(np.asarray(mesh.vertex_colors))
-    # print("")
-    # # check_properties(mesh)
+    # app.add_window(vis)
+    # app.run()
 
-    # # for vertex in mesh.vertices:
-    # #     print(vertex)
-
-    # print("Try to render a mesh with normals (exist: " +
-    #         str(mesh.has_vertex_normals()) + ") and colors (exist: " +
-    #         str(mesh.has_vertex_colors()) + ")")
 
 
 if __name__=="__main__":
