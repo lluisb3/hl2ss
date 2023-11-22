@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# This script demonstrates how to align RGBD and Scene Understanding data.
+# This script demonstrates how to align RGBD and Spatial Mapping data.
 # RGBD integration is dynamic.
 # Press space to stop.
 #------------------------------------------------------------------------------
@@ -16,13 +16,16 @@ import hl2ss_mp
 import hl2ss_3dcv
 import hl2ss_sa
 from pathlib import Path
+from ply_double_to_float import ply_double_to_float
 
 thispath = Path(__file__).resolve()
 
-# Settings --------------------------------------------------------------------
 
+# Settings --------------------------------------------------------------------
 # HoloLens address
-host = '153.109.130.67'
+host = '192.168.1.117'
+
+exp_name = "data_office"
 
 # Calibration path (must exist but can be empty)
 calibration_path = f'{thispath.parent.parent}/calibration'
@@ -37,28 +40,31 @@ buffer_size = 10
 
 # Integrator parameters
 max_depth = 2.0
-voxel_size = 16.0/512.0
+voxel_size = 0.01
 block_resolution = 8
-block_count = 100000
+block_count = 1000000
 device = 'cpu:0'
 weight_threshold = 0.5
 
-# Scene Understanding manager parameters
-world_mesh = True
-mesh_lod =  hl2ss.SU_MeshLOD.Fine
-query_radius = 0.5
-kind_flags = hl2ss.SU_KindFlag.Background | hl2ss.SU_KindFlag.Wall | hl2ss.SU_KindFlag.Floor | hl2ss.SU_KindFlag.Ceiling | hl2ss.SU_KindFlag.Platform | hl2ss.SU_KindFlag.Unknown | hl2ss.SU_KindFlag.World | hl2ss.SU_KindFlag.CompletelyInferred
+# Spatial Mapping manager parameters
+tpcm = 10000
+threads = 2
+origin = [0, 0, 0]
+radius = 4
 
 #------------------------------------------------------------------------------
-
-if __name__ == '__main__':
-    # Keyboard events ---------------------------------------------------------
-    enable = True
-
-    def on_press(key):
+def on_press(key):
         global enable
         enable = key != keyboard.Key.space
         return enable
+
+# Output folder
+output_path = f"{thispath.parent.parent}/data/{exp_name}"
+Path(output_path).mkdir(parents=True, exist_ok=True)
+
+# Keyboard events ---------------------------------------------------------
+if __name__ == '__main__':
+    enable = True
 
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
@@ -79,29 +85,44 @@ if __name__ == '__main__':
     uv2xy = hl2ss_3dcv.compute_uv2xy(calibration_lt.intrinsics, hl2ss.Parameters_RM_DEPTH_LONGTHROW.WIDTH, hl2ss.Parameters_RM_DEPTH_LONGTHROW.HEIGHT)
     xy1, scale = hl2ss_3dcv.rm_depth_compute_rays(uv2xy, calibration_lt.scale)
 
-    # Get SU data -------------------------------------------------------------
-    su_manager = hl2ss_sa.su_manager(host)
-    su_manager.open()
-    su_manager.configure(world_mesh, mesh_lod, query_radius, kind_flags)
-    su_manager.update()
-    su_manager.close()
-    items = su_manager.get_items()
+    # Get SM data -------------------------------------------------------------
+    sm_volume = hl2ss.sm_bounding_volume()
+    sm_volume.add_sphere(origin, radius)
 
-    meshes = []
-    for item in items.values():
-        meshes.extend(item.meshes)
+    sm_manager = hl2ss_sa.sm_manager(host, tpcm, threads)
+    sm_manager.open()
+    sm_manager.set_volumes(sm_volume)
+    sm_manager.get_observed_surfaces()
+    sm_manager.close()
+    meshes = sm_manager.get_meshes()
 
-    meshes = [hl2ss_sa.su_mesh_to_open3d_triangle_mesh(mesh) for mesh in meshes]
+    first_mesh = True
+    open3d_meshes = []
+    meshes = [hl2ss_sa.sm_mesh_to_open3d_triangle_mesh(mesh) for mesh in meshes]
     for mesh in meshes:
         mesh.compute_vertex_normals()
-        vis.add_geometry(mesh)
+        mesh.vertex_colors = mesh.vertex_normals
+        mesh.vertex_colors = o3d.utility.Vector3dVector(np.clip(
+            np.asarray(mesh.vertex_colors), 0, 1))
 
+        if (first_mesh):
+            first_mesh = False
+            open3d_meshes = mesh
+        else:
+            open3d_meshes += mesh
+
+    # Save mesh
+    mesh_file = f"{output_path}/{exp_name}_mesh.ply"
+    o3d.io.write_triangle_mesh(mesh_file, open3d_meshes)
+    ply_double_to_float(mesh_file)
+    print(f"Mesh saved in {mesh_file}")
+    
     # Start streams -----------------------------------------------------------
     producer = hl2ss_mp.producer()
     producer.configure(hl2ss.StreamPort.PERSONAL_VIDEO, hl2ss_lnm.rx_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO, width=pv_width, height=pv_height, framerate=pv_framerate, decoded_format='rgb24'))
     producer.configure(hl2ss.StreamPort.RM_DEPTH_LONGTHROW, hl2ss_lnm.rx_rm_depth_longthrow(host, hl2ss.StreamPort.RM_DEPTH_LONGTHROW))
     producer.initialize(hl2ss.StreamPort.PERSONAL_VIDEO, buffer_size * pv_framerate)
-    producer.initialize(hl2ss.StreamPort.RM_DEPTH_LONGTHROW, buffer_size * hl2ss.Parameters_RM_DEPTH_LONGTHROW.FPS)
+    producer.initialize(hl2ss.StreamPort.RM_DEPTH_LONGTHROW, buffer_size * hl2ss.Parameters_RM_DEPTH_LONGTHROW.FPS)    
     producer.start(hl2ss.StreamPort.PERSONAL_VIDEO)
     producer.start(hl2ss.StreamPort.RM_DEPTH_LONGTHROW)
 
@@ -128,7 +149,6 @@ if __name__ == '__main__':
         _, data_lt = sink_lt.get_most_recent_frame()
         if ((data_lt is None) or (not hl2ss.is_valid_pose(data_lt.pose))):
             continue
-
         _, data_pv = sink_pv.get_nearest(data_lt.timestamp)
         if ((data_pv is None) or (not hl2ss.is_valid_pose(data_pv.pose))):
             continue
@@ -177,6 +197,16 @@ if __name__ == '__main__':
         vis.poll_events()
         vis.update_renderer()
 
+    
+    pcd.colors = o3d.utility.Vector3dVector(np.clip(np.asarray(pcd.colors), 0, 1))
+    pcd.estimate_normals()
+
+    # Save pcd
+    pcd_file = f"{output_path}/pcd_{exp_name}.ply"
+    o3d.io.write_point_cloud(pcd_file, pcd)
+    ply_double_to_float(pcd_file)
+    print(f"Pcd saved in {pcd_file}")
+    
     # Stop streams ------------------------------------------------------------
     sink_pv.detach()
     sink_lt.detach()    

@@ -70,15 +70,18 @@ def main(mesh_path, pcd_path):
 
     points = np.asarray(pcd.points)
     vertices = np.asarray(mesh.vertices)
+    
 
-    for point in points:
-        for vertex in vertices:
-            if np.array_equal(point, vertex):
-                print(point)
-                print(vertex)
+    for k, vertex in enumerate(vertices):
+        print(k+1)
+        # print(vertex.shape)
+        # print(vertex)
+        y = np.isclose(points, vertex, atol=0.01)
 
-    print(points)
-    print(vertices)
+        for i, z in enumerate(y):
+            if all(z):
+                print(points[i,:])
+        # print(y.shape)
 
     # # Load scene visualization    
     # vis.add_geometry(f"Scene", mesh)

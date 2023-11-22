@@ -636,6 +636,42 @@ def unpack_to_png(input_filename, output_filename):
     tar.close()
     rd.close()
 
+def unpack_to_pv_depth(pv_filename, depth_filename, path_output):
+    rd_pv = hl2ss_io.create_rd(pv_filename, hl2ss.ChunkSize.SINGLE_TRANSFER, 'bgr24')
+    rd_depth = hl2ss_io.sequencer(depth_filename, hl2ss.ChunkSize.SINGLE_TRANSFER, True)
+    rd_pv.open()
+    rd_depth.open()
+
+    idx = 0
+    depth_previous = np.zeros([288, 320])
+    while (True):
+        data_pv = rd_pv.get_next_packet()
+        if (data_pv is None):
+            break
+
+         # Find RM VLC frames corresponding to the current PV frame ----------------
+        data_depth = rd_depth.get_next_packet(data_pv.timestamp)
+
+        if (data_depth is not None):
+            image = data_pv.payload.image
+            depth = cv2.imencode('.png', data_depth.payload.depth)[1].tobytes()
+            ab = cv2.imencode('.png', data_depth.payload.ab)[1].tobytes()
+            depth_info = tarfile.TarInfo(f'depth_{idx}.png')        
+            ab_info = tarfile.TarInfo(f'ab_{idx}.png')
+            depth_info.size = len(depth)
+            ab_info.size = len(ab)
+            # tar.addfile(depth_info, io.BytesIO(depth))
+            # tar.addfile(ab_info, io.BytesIO(ab))
+            if np.sum(data_depth.payload.depth) != np.sum(depth_previous): 
+                cv2.imwrite(f'{path_output}/image_{idx}.png', image)
+                cv2.imwrite(f'{path_output}/depth_{idx}.png', data_depth.payload.depth)
+                cv2.imwrite(f'{path_output}/ab_{idx}.png', data_depth.payload.ab)
+                idx += 1
+            
+            depth_previous = data_depth.payload.depth
+
+    rd_pv.close()
+
 
 #------------------------------------------------------------------------------
 # Timing

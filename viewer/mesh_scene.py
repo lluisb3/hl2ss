@@ -93,8 +93,9 @@ for index, mesh in meshes.items():
     print(f'Task {index}: surface id {id_hex} @ {timestamp} has {mesh.vertex_positions.shape[0]} vertices {mesh.triangle_indices.shape[0]} triangles {mesh.vertex_normals.shape[0]} normals')
 
     hl2ss_3dcv.sm_mesh_normalize(mesh)
-    
+
     open3d_mesh = hl2ss_sa.sm_mesh_to_open3d_triangle_mesh(mesh)
+    open3d_mesh.compute_vertex_normals()
     open3d_mesh.vertex_colors = open3d_mesh.vertex_normals
     open3d_meshes.append(open3d_mesh)
 
@@ -110,4 +111,4 @@ for index, mesh in meshes.items():
 o3d.io.write_triangle_mesh(f"{output_path}/mesh_{exp_name}.ply", saved_mesh)
 print(f"Mesh saved in {output_path}")
 
-o3d.visualization.draw_geometries(open3d_meshes, mesh_show_back_face=True)
+o3d.visualization.draw_geometries([saved_mesh], mesh_show_back_face=True)

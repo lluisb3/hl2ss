@@ -12,7 +12,7 @@ import hl2ss_sa
 # Settings --------------------------------------------------------------------
 
 # HoloLens address
-host = '153.109.130.58'
+host = '153.109.130.67'
 
 # Query parameters
 enable_scene_object_quads = True
@@ -20,7 +20,7 @@ enable_scene_object_meshes = True
 enable_only_observed_scene_objects = False
 enable_world_mesh = True
 requested_mesh_level_of_detail = hl2ss.SU_MeshLOD.Fine
-query_radius = 10.0 # Meters
+query_radius = 4.0 # Meters
 create_mode = hl2ss.SU_Create.New
 kinds = hl2ss.SU_KindFlag.Background | hl2ss.SU_KindFlag.Wall | hl2ss.SU_KindFlag.Floor | hl2ss.SU_KindFlag.Ceiling | hl2ss.SU_KindFlag.Platform | hl2ss.SU_KindFlag.Unknown | hl2ss.SU_KindFlag.World | hl2ss.SU_KindFlag.CompletelyInferred
 get_orientation = True
@@ -89,20 +89,20 @@ print(f'Items found: {len(result.items)}')
 open3d_meshes = []
 collider_meshes = []
 
-for item in result.items:
-    item.unpack()
-    print(f'SceneObject ID={item.id.hex()} Kind={item.kind} Orientation={item.orientation} Position={item.position} Alignment={item.alignment} Extents={item.extents}')
-    print('Location')
-    print(item.location)
-    print(f'Meshes: {len(item.meshes)}')
-    print(f'Collider meshes: {len(item.collider_meshes)}')
+# for item in result.items:
+#     item.unpack()
+#     print(f'SceneObject ID={item.id.hex()} Kind={item.kind} Orientation={item.orientation} Position={item.position} Alignment={item.alignment} Extents={item.extents}')
+#     print('Location')
+#     print(item.location)
+#     print(f'Meshes: {len(item.meshes)}')
+#     print(f'Collider meshes: {len(item.collider_meshes)}')
 
-    for mesh in item.meshes:
-        mesh.unpack()
-        hl2ss_3dcv.su_normalize(mesh, item.location @ result.pose)
-        open3d_mesh = hl2ss_sa.su_mesh_to_open3d_triangle_mesh(mesh)
-        open3d_mesh.compute_vertex_normals()
-        open3d_mesh.paint_uniform_color(kind_color[int(item.kind)])
-        open3d_meshes.append(open3d_mesh)
+#     for mesh in item.meshes:
+#         mesh.unpack()
+#         hl2ss_3dcv.su_normalize(mesh, item.location @ result.pose)
+#         open3d_mesh = hl2ss_sa.su_mesh_to_open3d_triangle_mesh(mesh)
+#         open3d_mesh.compute_vertex_normals()
+#         open3d_mesh.paint_uniform_color(kind_color[int(item.kind)])
+#         open3d_meshes.append(open3d_mesh)
 
-o3d.visualization.draw_geometries(open3d_meshes, mesh_show_back_face=True)
+# o3d.visualization.draw_geometries(open3d_meshes, mesh_show_back_face=True)

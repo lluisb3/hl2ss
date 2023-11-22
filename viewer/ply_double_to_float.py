@@ -1,12 +1,7 @@
-import open3d as o3d
-import open3d.visualization.gui as gui
-from pathlib import Path
+import os
 import numpy as np
 from plyfile import PlyData, PlyProperty
-import open3d.core as o3c
 import click
-
-thispath = Path(__file__).resolve()
 
 
 def load_ply(filepath):
@@ -35,37 +30,7 @@ def check_properties(mesh):
     print(f"  watertight:             {watertight}")
     print(f"  orientable:             {orientable}")
 
-
-@click.command()
-@click.option(
-    "--experiment_name",
-    default="scene",
-    prompt="Name of the scene to visualize",
-    help="Name of the scene to visualize",
-)
-def main(experiment_name):
-    filename = f"mesh_{experiment_name}.ply"
-    path = f"{thispath.parent.parent}/data/{experiment_name}"
-
-    ply_path = f"{path}/{filename}"
-
-    # mesh = o3d.io.read_triangle_mesh(ply_path)
-
-    # points=np.asarray(mesh.vertices)
-    # dtype = o3d.core.float32
-    # p_tensor = o3d.core.Tensor(points, dtype=dtype)
-    # pc = o3d.t.geometry.PointCloud(p_tensor)
-    # # o3d.t.io.write_point_cloud("data/float32.ply", pc)
-
-    # # pc.estimate_normals()
-    # with o3d.utility.VerbosityContextManager(
-    #     o3d.utility.VerbosityLevel.Debug) as cm:
-    #     mesh, densities = o3d.t.geometry.TriangleMesh.create_from_point_cloud_poisson(
-    #     pc, depth=9)
-    # o3d.t.io.write_triangle_mesh("data/mesh_float32.ply", mesh)
-
-
-    #Read the pointcloud
+def ply_double_to_float(ply_path):
     plydata = PlyData.read(ply_path)
 
     #go through all property one by one and if it is a double, we change it to an equivalent property in float
@@ -80,13 +45,20 @@ def main(experiment_name):
     #Save the same ply file but with float properties instead of double
     plydata.elements[0].properties = real_properties
 
-    #Write the data back to the original pointcloud
-    plydata.write(f"{path}/mesh_float.ply")
+    #Write the data back to the original pointcloudt
+    os.remove(ply_path)
+    plydata.write(ply_path)
 
 
-    # print("Try to render a mesh with normals (exist: " +
-    #         str(mesh.has_vertex_normals()) + ") and colors (exist: " +
-    #         str(mesh.has_vertex_colors()) + ")")
+@click.command()
+@click.option(
+    "--ply_path",
+    default="scene",
+    prompt="Path to .ply file to convert double to float",
+    help="Path to .ply file to convert double to float",
+)
+def main(ply_path):
+    ply_double_to_float(ply_path)
 
 
 if __name__=="__main__":

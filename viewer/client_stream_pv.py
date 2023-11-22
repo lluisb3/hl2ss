@@ -18,14 +18,14 @@ import hl2ss_lnm
 # Settings --------------------------------------------------------------------
 
 # HoloLens address
-# host = '153.109.130.56'
-host = '192.168.1.112'
+host = '153.109.130.67'
+# host = '192.168.1.112'
 
 # Operating mode
 # 0: video
 # 1: video + camera pose
 # 2: query calibration (single transfer)
-mode = hl2ss.StreamMode.MODE_0
+mode = hl2ss.StreamMode.MODE_2
 
 # Enable Mixed Reality Capture (Holograms)
 enable_mrc = False

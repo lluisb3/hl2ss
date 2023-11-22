@@ -193,7 +193,5 @@ if __name__ == '__main__':
     # Stop keyboard events ----------------------------------------------------
     listener.join()
 
-    o3d.io.write_point_cloud(f"{output_path}/pcd_{exp_name}.ply", pcd)
-
-    # Show final point cloud --------------------------------------------------
+     # Show final point cloud --------------------------------------------------
     vis.run()

@@ -1,31 +1,37 @@
 #------------------------------------------------------------------------------
-# This script demonstrates how to compute a depth map for a given PV image
-# using the Spatial Mapping data from the HoloLens. Note that depth map 
-# generation will fail outside the SM sampling volume.
+# Recording example. Data is recorded to binary files. See simple player for
+# how to extract recorded data.
+# Press space to start recording.
+# Press stop to stop recording.
 #------------------------------------------------------------------------------
 
+from pynput import keyboard
 import multiprocessing as mp
-import numpy as np
-import cv2
-import hl2ss_imshow
 import hl2ss
 import hl2ss_lnm
 import hl2ss_mp
 import hl2ss_3dcv
 import hl2ss_sa
 import hl2ss_utilities
+import cv2
+import numpy as np
 from pathlib import Path
 
 thispath = Path(__file__).resolve()
 
-
 # Settings --------------------------------------------------------------------
 
 # HoloLens address
-host = '153.109.130.67'
+host = '192.168.1.117'
+
+exp_name = 'data_office'
 
 # Calibration folder (must exist but can be empty)
 calibration_path = f'{thispath.parent.parent}/calibration'
+
+# Output directory
+ouput_path = f'{thispath.parent.parent}/data/{exp_name}'
+Path(ouput_path).mkdir(parents=True, exist_ok=True)
 
 # PV settings
 pv_focus = 1000 # In mm
@@ -43,8 +49,17 @@ sm_origin = [0, 0, 0] # Origin of sampling volume
 sm_radius = 5 # Radius of sampling volume 
 
 #------------------------------------------------------------------------------
+def on_press(key):
+        global enable
+        enable = key != keyboard.Key.space
+        return enable
 
 if __name__ == "__main__":
+    enable = True
+
+    listener = keyboard.Listener(on_press=on_press)
+    listener.start()
+
     # Create and configure SM manager -----------------------------------------
     sm_manager = hl2ss_sa.sm_mp_manager(host, sm_tpcm, sm_threads)
     sm_manager.open()
@@ -70,17 +85,16 @@ if __name__ == "__main__":
     pv_calibration = hl2ss_3dcv.get_calibration_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO, calibration_path, pv_focus, pv_width, pv_height, pv_fps, False)
     pv_calibration.intrinsics, pv_calibration.extrinsics = hl2ss_3dcv.pv_fix_calibration(pv_calibration.intrinsics, np.eye(4, 4, dtype=np.float32))
 
+    # Save color intrinsics
+    colorintrinsics_path = f"{ouput_path}/intrinsic"
+    Path(colorintrinsics_path).mkdir(parents=True, exist_ok=True)
+
+    np.savetxt(f"{colorintrinsics_path}/intrinsic_color.txt", pv_calibration.intrinsics)
+
     # Get PV rays in camera coordinates
     pv_uv2xy = hl2ss_3dcv.compute_uv2xy(pv_calibration.intrinsics, pv_width, pv_height)
     pv_xy1 = hl2ss_3dcv.to_homogeneous(pv_uv2xy)
     pv_rays = hl2ss_3dcv.to_unit(pv_xy1)
-
-    # Create windows
-    wnd_name_pv = 'PV'
-    wnd_name_depth = 'PV-SM Depth'
-
-    cv2.namedWindow(wnd_name_pv)
-    cv2.namedWindow(wnd_name_depth)
 
     pc = hl2ss_utilities.framerate_counter()
 
@@ -95,12 +109,12 @@ if __name__ == "__main__":
     sink_pv.get_attach_response()
     
     pc.reset()
+    idx = 0
 
+    print("===== Start recording =====\n")
+    print("===== PRESS SPACE TO STOP RECORDING =====\n")
     # Acquire data ------------------------------------------------------------
-    while (True):
-        key = cv2.waitKey(1)
-        if ((key & 0xff) == 27): # Esc to stop
-            break
+    while (enable):
 
         _, data = sink_pv.get_most_recent_frame()
         
@@ -122,15 +136,29 @@ if __name__ == "__main__":
         pv_depth = sm_manager.cast_rays(pv_world_rays)
         pv_depth[np.isinf(pv_depth)] = 0
 
-        # Display images
-        cv2.imshow(wnd_name_pv, data.payload.image)
-        cv2.imshow(wnd_name_depth, pv_depth / np.max(pv_depth)) # Normalized for visibility
+        # Save images
+        pose_path = f"{ouput_path}/pose"
+        Path(pose_path).mkdir(parents=True, exist_ok=True)
+        color_path = f"{ouput_path}/color"
+        Path(color_path).mkdir(parents=True, exist_ok=True)
+        depth_path = f"{ouput_path}/depth"
+        Path(depth_path).mkdir(parents=True, exist_ok=True)
+
+        np.savetxt(f"{pose_path}/{idx}.txt", data.pose)
+        cv2.imwrite(f"{color_path}/{idx}.png", data.payload.image)
+        cv2.imwrite(f"{depth_path}/{idx}.png", pv_depth) # Normalized for visibility
 
         pc.increment()
         if (pc.delta() > 5.0):
             print(f'fps: {pc.get()}')
             pc.reset()
-        
+
+        idx += 1
+
+    
+    print("===== Finish recording =====\n")
+    print(f"===== Output folder: {ouput_path} =====\n")
+    
     # Stop PV stream ----------------------------------------------------------
     sink_pv.detach()
     producer.stop(hl2ss.StreamPort.PERSONAL_VIDEO)
@@ -138,3 +166,7 @@ if __name__ == "__main__":
 
     # Close SM manager --------------------------------------------------------
     sm_manager.close()
+
+    # Stop keyboard events ----------------------------------------------------
+    listener.join()
+
