@@ -23,9 +23,9 @@ thispath = Path(__file__).resolve()
 
 # Settings --------------------------------------------------------------------
 # HoloLens address
-host = '192.168.1.117'
+host = '192.168.1.20'
 
-exp_name = "data_office"
+exp_name = 'aa_rotation'
 
 # Calibration path (must exist but can be empty)
 calibration_path = f'{thispath.parent.parent}/calibration'
@@ -200,9 +200,12 @@ if __name__ == '__main__':
     
     pcd.colors = o3d.utility.Vector3dVector(np.clip(np.asarray(pcd.colors), 0, 1))
     pcd.estimate_normals()
+    R = pcd.get_rotation_matrix_from_xyz(((np.pi / 2), 0, 0))
+    print(R)
+    pcd.rotate(R, center=(0, 0, 0))
 
     # Save pcd
-    pcd_file = f"{output_path}/pcd_{exp_name}.ply"
+    pcd_file = f"{output_path}/{exp_name}_pcd.ply"
     o3d.io.write_point_cloud(pcd_file, pcd)
     ply_double_to_float(pcd_file)
     print(f"Pcd saved in {pcd_file}")

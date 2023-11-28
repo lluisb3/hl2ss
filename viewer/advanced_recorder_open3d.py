@@ -22,9 +22,9 @@ thispath = Path(__file__).resolve()
 # Settings --------------------------------------------------------------------
 
 # HoloLens address
-host = '192.168.1.117'
+host = '192.168.1.20'
 
-exp_name = 'data_office'
+exp_name = 'data_casa_pose'
 
 # Calibration folder (must exist but can be empty)
 calibration_path = f'{thispath.parent.parent}/calibration'
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     pv_calibration = hl2ss_3dcv.get_calibration_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO, calibration_path, pv_focus, pv_width, pv_height, pv_fps, False)
     pv_calibration.intrinsics, pv_calibration.extrinsics = hl2ss_3dcv.pv_fix_calibration(pv_calibration.intrinsics, np.eye(4, 4, dtype=np.float32))
 
-    # Save color intrinsics
+    # Save color intrinsicspyt
     colorintrinsics_path = f"{ouput_path}/intrinsic"
     Path(colorintrinsics_path).mkdir(parents=True, exist_ok=True)
 
@@ -144,8 +144,8 @@ if __name__ == "__main__":
         depth_path = f"{ouput_path}/depth"
         Path(depth_path).mkdir(parents=True, exist_ok=True)
 
-        np.savetxt(f"{pose_path}/{idx}.txt", data.pose)
-        cv2.imwrite(f"{color_path}/{idx}.png", data.payload.image)
+        np.savetxt(f"{pose_path}/{idx}.txt", data.pose.T)
+        cv2.imwrite(f"{color_path}/{idx}.jpg", data.payload.image)
         cv2.imwrite(f"{depth_path}/{idx}.png", pv_depth) # Normalized for visibility
 
         pc.increment()

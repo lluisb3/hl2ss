@@ -3,7 +3,6 @@ import open3d.visualization.gui as gui
 from pathlib import Path
 import numpy as np
 from plyfile import PlyData, PlyProperty
-import open3d.core as o3c
 import click
 
 thispath = Path(__file__).resolve()
@@ -39,49 +38,23 @@ def main(mesh_path, pcd_path):
     # vis = o3d.visualization.O3DVisualizer("Scene Hes·so", 1024, 768)
     # vis.show_settings = True
 
-    coords_mesh, feats_mesh = load_ply(mesh_path)
+    # coords_mesh, feats_mesh = load_ply(mesh_path)
 
-    coords_pcd, feats_pcd = load_ply(pcd_path)
+    # coords_pcd, feats_pcd = load_ply(pcd_path)
 
-    print(coords_mesh.shape)
-    print(feats_mesh.shape)
-    print(coords_pcd.shape)
-    print(feats_pcd.shape)
+    # print(coords_mesh.shape)
+    # print(feats_mesh.shape)
+    # print(coords_pcd.shape)
+    # print(feats_pcd.shape)
 
-    # for coord_mesh, feat_mesh in zip(coords_mesh, feats_mesh):
-    #     for coord_pcd, feat_pcd in zip(coords_pcd, feats_pcd):
-    #         if coord_mesh.any() == coord_pcd.any():
-    #             print("any")
-    #             print(feat_mesh)
-    #             print(feat_pcd)
-
-    # for coord_mesh, feat_mesh in zip(coords_mesh, feats_mesh):
-    #     for coord_pcd, feat_pcd in zip(coords_pcd, feats_pcd):
-    #         print(coord_mesh)
-    #         print(coord_pcd)
-
-    #         if coord_mesh.all() == coord_pcd.all():
-    #             print("Enter")
-                
-    mesh = o3d.io.read_triangle_mesh(mesh_path)
+    # mesh = o3d.io.read_triangle_mesh(mesh_path)
     pcd = o3d.io.read_point_cloud(pcd_path)
 
-    mesh.vertex_colors = pcd.colors
+    R = pcd.get_rotation_matrix_from_xyz(((np.pi / 2), 0, 0))
+    print(R)
+    pcd.rotate(R, center=(0, 0, 0))
 
-    points = np.asarray(pcd.points)
-    vertices = np.asarray(mesh.vertices)
-    
-
-    for k, vertex in enumerate(vertices):
-        print(k+1)
-        # print(vertex.shape)
-        # print(vertex)
-        y = np.isclose(points, vertex, atol=0.01)
-
-        for i, z in enumerate(y):
-            if all(z):
-                print(points[i,:])
-        # print(y.shape)
+    o3d.io.write_point_cloud(pcd_path, pcd)
 
     # # Load scene visualization    
     # vis.add_geometry(f"Scene", mesh)
