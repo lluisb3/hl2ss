@@ -16,45 +16,57 @@ import hl2ss_utilities
 import cv2
 import numpy as np
 from pathlib import Path
+import argparse
 
 thispath = Path(__file__).resolve()
 
-# Settings --------------------------------------------------------------------
 
-# HoloLens address
-host = '192.168.1.20'
+def main():
+    # Settings --------------------------------------------------------------------
 
-exp_name = 'data_casa_pose'
+    # Create the parser
+    parser = argparse.ArgumentParser()
+    # Add arguments
+    parser.add_argument('--exp_name', type=str, required=True)
+    parser.add_argument('--ip_hololens', type=str, required=True)
 
-# Calibration folder (must exist but can be empty)
-calibration_path = f'{thispath.parent.parent}/calibration'
+    # Parse the arguments
+    args = parser.parse_args()
+    exp_name = args.exp_name
+    ip_hololens = args.ip_hololens
 
-# Output directory
-ouput_path = f'{thispath.parent.parent}/data/{exp_name}'
-Path(ouput_path).mkdir(parents=True, exist_ok=True)
+    # HoloLens address
+    host = ip_hololens
 
-# PV settings
-pv_focus = 1000 # In mm
-pv_width = 640
-pv_height = 360
-pv_fps = 30
+    # Calibration folder (must exist but can be empty)
+    calibration_path = f'{thispath.parent.parent}/calibration'
 
-# Buffer length in seconds
-buffer_size = 10 
+    # Output directory
+    ouput_path = f'{thispath.parent.parent}/data/{exp_name}'
+    Path(ouput_path).mkdir(parents=True, exist_ok=True)
 
-# SM settings
-sm_tpcm = 1000 # Triangles per cubic meter
-sm_threads = 2 # Number of threads for computing meshes (on the HoloLens)
-sm_origin = [0, 0, 0] # Origin of sampling volume
-sm_radius = 5 # Radius of sampling volume 
+    # PV settings
+    pv_focus = 1000 # In mm
+    pv_width = 640
+    pv_height = 360
+    pv_fps = 30
 
-#------------------------------------------------------------------------------
-def on_press(key):
-        global enable
-        enable = key != keyboard.Key.space
-        return enable
+    # Buffer length in seconds
+    buffer_size = 10 
 
-if __name__ == "__main__":
+    # SM settings
+    sm_tpcm = 1000 # Triangles per cubic meter
+    sm_threads = 2 # Number of threads for computing meshes (on the HoloLens)
+    sm_origin = [0, 0, 0] # Origin of sampling volume
+    sm_radius = 5 # Radius of sampling volume 
+
+    #------------------------------------------------------------------------------
+    def on_press(key):
+            global enable
+            enable = key != keyboard.Key.space
+            return enable
+
+    global enable
     enable = True
 
     listener = keyboard.Listener(on_press=on_press)
@@ -170,3 +182,6 @@ if __name__ == "__main__":
     # Stop keyboard events ----------------------------------------------------
     listener.join()
 
+
+if __name__ == '__main__':
+    main()

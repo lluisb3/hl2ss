@@ -17,64 +17,76 @@ import hl2ss_3dcv
 import hl2ss_sa
 from pathlib import Path
 from ply_double_to_float import ply_double_to_float
+import argparse
+
 
 thispath = Path(__file__).resolve()
 
-
-# Settings --------------------------------------------------------------------
-# HoloLens address
-host = '192.168.1.20'
-
-exp_name = 'aa_rotation'
-
-# Calibration path (must exist but can be empty)
-calibration_path = f'{thispath.parent.parent}/calibration'
-
-# Camera parameters
-pv_width = 640
-pv_height = 360
-pv_framerate = 30
-
-# Buffer length in seconds
-buffer_size = 10
-
-# Integrator parameters
-max_depth = 2.0
-voxel_size = 0.01
-block_resolution = 8
-block_count = 1000000
-device = 'cpu:0'
-weight_threshold = 0.5
-
-# Spatial Mapping manager parameters
-tpcm = 10000
-threads = 2
-origin = [0, 0, 0]
-radius = 4
-
 #------------------------------------------------------------------------------
-def on_press(key):
+
+def main():
+    # Settings --------------------------------------------------------------------
+
+    # Create the parser
+    parser = argparse.ArgumentParser()
+    # Add arguments
+    parser.add_argument('--exp_name', type=str, required=True)
+    parser.add_argument('--ip_hololens', type=str, required=True)
+
+    # Parse the arguments
+    args = parser.parse_args()
+    exp_name = args.exp_name
+    ip_hololens = args.ip_hololens
+
+    # HoloLens address
+    host = ip_hololens
+
+    # Calibration path (must exist but can be empty)
+    calibration_path = f'{thispath.parent.parent}/calibration'
+
+    # Camera parameters
+    pv_width = 640
+    pv_height = 360
+    pv_framerate = 30
+
+    # Buffer length in seconds
+    buffer_size = 10
+
+    # Integrator parameters
+    max_depth = 2.0
+    voxel_size = 0.01
+    block_resolution = 8
+    block_count = 3000000
+    device = 'cpu:0'
+    weight_threshold = 0.5
+
+    # Spatial Mapping manager parameters
+    tpcm = 10000
+    threads = 2
+    origin = [0, 0, 0]
+    radius = 4
+
+    # Rotation matrix z-up axis
+    rotation_z_up = np.array(([-1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0],
+                    [-0.0, 1.0, -0.0]))
+    
+    # Output folder
+    output_path = f"{thispath.parent.parent}/data/{exp_name}"
+    Path(output_path).mkdir(parents=True, exist_ok=True)
+
+    # Keyboard events ---------------------------------------------------------
+    # While loop enable until press space
+    global enable
+    enable = True
+
+    def on_press(key):
         global enable
         enable = key != keyboard.Key.space
         return enable
 
-# Output folder
-output_path = f"{thispath.parent.parent}/data/{exp_name}"
-Path(output_path).mkdir(parents=True, exist_ok=True)
-
-# Keyboard events ---------------------------------------------------------
-if __name__ == '__main__':
-    enable = True
-
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
-
-    # Create Open3D visualizer ------------------------------------------------
-    vis = o3d.visualization.Visualizer()
-    vis.create_window()
-    vis.get_render_option().mesh_show_back_face = True
-
-    first_pcd = True
 
     # Start PV subsystem ------------------------------------------------------
     hl2ss_lnm.start_subsystem_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO)
@@ -97,7 +109,7 @@ if __name__ == '__main__':
     meshes = sm_manager.get_meshes()
 
     first_mesh = True
-    open3d_meshes = []
+    open3d_meshes = None
     meshes = [hl2ss_sa.sm_mesh_to_open3d_triangle_mesh(mesh) for mesh in meshes]
     for mesh in meshes:
         mesh.compute_vertex_normals()
@@ -111,11 +123,17 @@ if __name__ == '__main__':
         else:
             open3d_meshes += mesh
 
-    # Save mesh
-    mesh_file = f"{output_path}/{exp_name}_mesh.ply"
-    o3d.io.write_triangle_mesh(mesh_file, open3d_meshes)
-    ply_double_to_float(mesh_file)
-    print(f"Mesh saved in {mesh_file}")
+    if open3d_meshes is None:
+        print("Mesh not found. Nothing to save")
+    else:
+        # Rotation mesh z-up axis
+        open3d_meshes.rotate(rotation_z_up, center=(0, 0, 0))
+
+        # Save mesh
+        mesh_file = f"{output_path}/{exp_name}_mesh.ply"
+        o3d.io.write_triangle_mesh(mesh_file, open3d_meshes)
+        ply_double_to_float(mesh_file)
+        print(f"Mesh saved in {mesh_file}")
     
     # Start streams -----------------------------------------------------------
     producer = hl2ss_mp.producer()
@@ -140,9 +158,16 @@ if __name__ == '__main__':
 
     pv_intrinsics = hl2ss.create_pv_intrinsics_placeholder()
     pv_extrinsics = np.eye(4, 4, dtype=np.float32)
+    first_pcd = True
 
+     # Create Open3D visualizer ------------------------------------------------
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    vis.get_render_option().mesh_show_back_face = True
     # Main loop ---------------------------------------------------------------
-    while (enable):
+    
+    while(enable):
+        
         # Get frames ----------------------------------------------------------
         sink_lt.acquire()
 
@@ -197,12 +222,13 @@ if __name__ == '__main__':
         vis.poll_events()
         vis.update_renderer()
 
-    
+    # Stop keyboard events ----------------------------------------------------
+    listener.join()
+
     pcd.colors = o3d.utility.Vector3dVector(np.clip(np.asarray(pcd.colors), 0, 1))
     pcd.estimate_normals()
-    R = pcd.get_rotation_matrix_from_xyz(((np.pi / 2), 0, 0))
-    print(R)
-    pcd.rotate(R, center=(0, 0, 0))
+
+    pcd.rotate(rotation_z_up, center=(0, 0, 0))
 
     # Save pcd
     pcd_file = f"{output_path}/{exp_name}_pcd.ply"
@@ -219,8 +245,9 @@ if __name__ == '__main__':
     # Stop PV subsystem -------------------------------------------------------
     hl2ss_lnm.stop_subsystem_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO)
 
-    # Stop keyboard events ----------------------------------------------------
-    listener.join()
-
     # Show final point cloud --------------------------------------------------
     vis.run()
+
+
+if __name__ == '__main__':
+    main()
