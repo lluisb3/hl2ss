@@ -1,8 +1,6 @@
 #------------------------------------------------------------------------------
-# Recording example. Data is recorded to binary files. See simple player for
-# how to extract recorded data.
-# Press space to start recording.
-# Press stop to stop recording.
+# Recording RGB images, depth images, pose and intrinsic color from Hololens2 
+# Press space to stop recording.
 #------------------------------------------------------------------------------
 
 from pynput import keyboard
@@ -148,6 +146,12 @@ def main():
         pv_depth = sm_manager.cast_rays(pv_world_rays)
         pv_depth[np.isinf(pv_depth)] = 0
 
+        # Compute pose z-up axis
+        pose_frame = data.pose.T
+        print(pose_frame)
+        pose_frame[[1,2]] = pose_frame[[2,1]]
+        print(pose_frame)
+
         # Save images
         pose_path = f"{ouput_path}/pose"
         Path(pose_path).mkdir(parents=True, exist_ok=True)
@@ -156,7 +160,7 @@ def main():
         depth_path = f"{ouput_path}/depth"
         Path(depth_path).mkdir(parents=True, exist_ok=True)
 
-        np.savetxt(f"{pose_path}/{idx}.txt", data.pose.T)
+        np.savetxt(f"{pose_path}/{idx}.txt", pose_frame)
         cv2.imwrite(f"{color_path}/{idx}.jpg", data.payload.image)
         cv2.imwrite(f"{depth_path}/{idx}.png", pv_depth) # Normalized for visibility
 
