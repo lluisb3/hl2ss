@@ -160,7 +160,14 @@ def main():
     pv_extrinsics = np.eye(4, 4, dtype=np.float32)
     first_pcd = True
 
-    # Main loop ---------------------------------------------------------------    
+     # Create Open3D visualizer ------------------------------------------------
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    vis.get_render_option().mesh_show_back_face = True
+
+    # Main loop ---------------------------------------------------------------
+    print('===== Recording started. =====')
+    print('===== Press space to stop recording... =====')
     while(enable):
         
         # Get frames ----------------------------------------------------------
@@ -208,12 +215,17 @@ def main():
         if (first_pcd):
             first_pcd = False
             pcd = pcd_tmp
-
+            vis.add_geometry(pcd)
         else:
             pcd.points = pcd_tmp.points
             pcd.colors = pcd_tmp.colors
+            vis.update_geometry(pcd)
+
+        vis.poll_events()
+        vis.update_renderer()
 
     # Stop keyboard events ----------------------------------------------------
+    print('===== Stop recording... =====')
     listener.join()
 
     pcd.colors = o3d.utility.Vector3dVector(np.clip(np.asarray(pcd.colors), 0, 1))
@@ -235,6 +247,9 @@ def main():
 
     # Stop PV subsystem -------------------------------------------------------
     hl2ss_lnm.stop_subsystem_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO)
+
+    # Show final point cloud --------------------------------------------------
+    vis.run()
 
 
 if __name__ == '__main__':

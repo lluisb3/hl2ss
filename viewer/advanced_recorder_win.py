@@ -18,6 +18,7 @@ import hl2ss_sa
 from pathlib import Path
 from ply_double_to_float import ply_double_to_float
 import argparse
+import time
 
 
 thispath = Path(__file__).resolve()
@@ -74,19 +75,6 @@ def main():
     # Output folder
     output_path = f"{thispath.parent.parent}/data/{exp_name}"
     Path(output_path).mkdir(parents=True, exist_ok=True)
-
-    # Keyboard events ---------------------------------------------------------
-    # While loop enable until press space
-    global enable
-    enable = True
-
-    def on_press(key):
-        global enable
-        enable = key != keyboard.Key.space
-        return enable
-
-    listener = keyboard.Listener(on_press=on_press)
-    listener.start()
 
     # Start PV subsystem ------------------------------------------------------
     hl2ss_lnm.start_subsystem_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO)
@@ -160,13 +148,13 @@ def main():
     pv_extrinsics = np.eye(4, 4, dtype=np.float32)
     first_pcd = True
 
-     # Create Open3D visualizer ------------------------------------------------
-    vis = o3d.visualization.Visualizer()
-    vis.create_window()
-    vis.get_render_option().mesh_show_back_face = True
-    # Main loop ---------------------------------------------------------------
-    
-    while(enable):
+    # Timer to stop while loop-------------------------------------------------
+    timeout = time.time() + 60*3
+    print('===== Recording started. =====')
+    print('===== You have 3 minutes to scan the room... =====')
+
+    # Main loop ---------------------------------------------------------------    
+    while True:
         
         # Get frames ----------------------------------------------------------
         sink_lt.acquire()
@@ -213,17 +201,15 @@ def main():
         if (first_pcd):
             first_pcd = False
             pcd = pcd_tmp
-            vis.add_geometry(pcd)
+
         else:
             pcd.points = pcd_tmp.points
             pcd.colors = pcd_tmp.colors
-            vis.update_geometry(pcd)
 
-        vis.poll_events()
-        vis.update_renderer()
-
-    # Stop keyboard events ----------------------------------------------------
-    listener.join()
+        # Stop loop timeout ---------------------------------------------------
+        if time.time() > timeout:
+            print('===== Stop recording... =====')
+            break
 
     pcd.colors = o3d.utility.Vector3dVector(np.clip(np.asarray(pcd.colors), 0, 1))
     pcd.estimate_normals()
@@ -244,9 +230,6 @@ def main():
 
     # Stop PV subsystem -------------------------------------------------------
     hl2ss_lnm.stop_subsystem_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO)
-
-    # Show final point cloud --------------------------------------------------
-    vis.run()
 
 
 if __name__ == '__main__':

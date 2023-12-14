@@ -4,9 +4,7 @@ USER root
 
 RUN apt-get update
 
-RUN apt-get upgrade -y
-
-RUN apt-get install libgl1 -y
+RUN apt-get install -y libgl1
 
 RUN mkdir -p /home/app
 
