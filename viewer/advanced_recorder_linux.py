@@ -56,7 +56,7 @@ def main():
     max_depth = 2.0
     voxel_size = 0.01
     block_resolution = 8
-    block_count = 3000000
+    block_count = 2000000
     device = 'cpu:0'
     weight_threshold = 0.5
 
