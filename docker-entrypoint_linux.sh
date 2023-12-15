@@ -1,7 +1,7 @@
 #!/bin/sh
 # bash docker-entrypoint_linux.sh
 
-IMAGE=lluisb3/hl2ss:v4.0
+IMAGE=lluisb3/hl2ss:v5.0
 IP_HOLOLENS=192.168.1.107
 EXP_NAME=hololens_docker
 

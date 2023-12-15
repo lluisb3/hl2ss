@@ -10,14 +10,15 @@ import numpy as np
 import multiprocessing as mp
 import open3d as o3d
 import cv2
+import pandas as pd
 import hl2ss
 import hl2ss_lnm
 import hl2ss_mp
 import hl2ss_3dcv
 import hl2ss_sa
 from pathlib import Path
-from ply_double_to_float import ply_double_to_float
 import argparse
+from utils import ply_double_to_float, xyz_rgb_from_ply
 
 
 thispath = Path(__file__).resolve()
@@ -250,6 +251,17 @@ def main():
 
     # Show final point cloud --------------------------------------------------
     # vis.run()
+
+    # Save coordinares and rgb values for each point in pcd and mesh ----------
+    header = ["x", "y", "z", "r", "g", "b"]
+
+    xyzrgb_mesh = xyz_rgb_from_ply(mesh_file).T
+    mesh_df = pd.DataFrame(xyzrgb_mesh, columns=header)
+    mesh_df.to_csv(f"{output_path}/xyz_rgb_mesh.csv")
+
+    xyzrgb_pcd = xyz_rgb_from_ply(pcd_file).T
+    pcd_df = pd.DataFrame(xyzrgb_pcd, columns=header)
+    pcd_df.to_csv(f"{output_path}/xyz_rgb_pcd.csv")
 
 
 if __name__ == '__main__':

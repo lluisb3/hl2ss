@@ -26,5 +26,6 @@ def main(pcd_path):
     app.add_window(vis)
     app.run()
 
+
 if __name__ == '__main__':
     main()

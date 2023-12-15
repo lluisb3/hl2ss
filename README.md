@@ -187,6 +187,31 @@ Building the server application and the Unity plugin requires a Windows 10 machi
 The server application will remain installed on the HoloLens even after power off. The Unity plugin is in the hl2ss\ARM64\Release\plugin folder.
 If you wish to create the server application appxbundle, right click the hl2ss project and select Publish -> Create App Packages.
 
+## Docker
+Run hl2ss as docker image to obtain a pointcloud and mesh file (.ply format) using the Hololens2. Follow this steps on Ubuntu to run the image correctly. (First follow the previous steps that describe how to connect with the Hololens2 to access the data) This image and this repository provides extra functions to obtain the pointcloud and mesh.
+
+#### Install docker:
+https://docs.docker.com/engine/install/ubuntu/
+
+
+#### Clone Git repository
+Clone the GitHub repository.
+```bash
+git clone https://github.com/lluisb3/hl2ss.git
+```
+
+#### Pull docker image 
+```bash
+sudo docker pull lluisb3/hl2ss:v5.0
+```
+
+#### Run bash file to record an scene and obtain pointcloud and mesh
+Once the path are modified run docker compose. (Important to change the IP_HOLOLENS variable to the IP displayed on the Hololens2 once inside the hl2ss application).
+```bash
+bash docker-entrypoint_linux.sh
+```
+This script outputs the pointcloud scanned and mesh (if detected) in the docker_volume folder on the home directory.
+
 ## Known issues and limitations
 
 - Multiple streams can be active at the same time but only one client per stream is allowed.
