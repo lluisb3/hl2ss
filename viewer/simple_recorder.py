@@ -20,9 +20,9 @@ thispath = Path(__file__).resolve()
 # Settings --------------------------------------------------------------------
 
 # HoloLens address
-host = '153.109.130.57'
+host = '192.168.1.107'
 
-exp_name = 'pointcloud_png'
+exp_name = 'spatial_input'
 # Output directory
 path = f'{thispath.parent.parent}/data/{exp_name}'
 
@@ -34,19 +34,19 @@ unpack = True
 # Ports to record
 ports = [
     hl2ss.StreamPort.RM_VLC_LEFTFRONT,
-    # hl2ss.StreamPort.RM_VLC_LEFTLEFT,
+    hl2ss.StreamPort.RM_VLC_LEFTLEFT,
     hl2ss.StreamPort.RM_VLC_RIGHTFRONT,
-    # hl2ss.StreamPort.RM_VLC_RIGHTRIGHT,
+    hl2ss.StreamPort.RM_VLC_RIGHTRIGHT,
     # hl2ss.StreamPort.RM_DEPTH_AHAT,
     hl2ss.StreamPort.RM_DEPTH_LONGTHROW,
-    # hl2ss.StreamPort.RM_IMU_ACCELEROMETER,
-    # hl2ss.StreamPort.RM_IMU_GYROSCOPE,
-    # hl2ss.StreamPort.RM_IMU_MAGNETOMETER,
+    hl2ss.StreamPort.RM_IMU_ACCELEROMETER,
+    hl2ss.StreamPort.RM_IMU_GYROSCOPE,
+    hl2ss.StreamPort.RM_IMU_MAGNETOMETER,
     hl2ss.StreamPort.PERSONAL_VIDEO,
-    # hl2ss.StreamPort.MICROPHONE,
+    hl2ss.StreamPort.MICROPHONE,
     hl2ss.StreamPort.SPATIAL_INPUT,
-    # hl2ss.StreamPort.EXTENDED_EYE_TRACKER,
-    # hl2ss.StreamPort.EXTENDED_AUDIO,
+    hl2ss.StreamPort.EXTENDED_EYE_TRACKER,
+    hl2ss.StreamPort.EXTENDED_AUDIO,
     ]
 
 # PV parameters
@@ -173,14 +173,13 @@ if __name__ == '__main__':
     if (len(mp4_input_filenames) > 0):
         hl2ss_utilities.unpack_to_mp4(mp4_input_filenames, mp4_output_filename)
 
-    # Unpack RM Depth Long Throw to a tar file containing Depth and AB PNGs ---
-    if (hl2ss.StreamPort.RM_DEPTH_LONGTHROW in ports):
-        hl2ss_utilities.unpack_to_png(filenames[hl2ss.StreamPort.RM_DEPTH_LONGTHROW], os.path.join(path, 'long_throw.tar'))
-        hl2ss_utilities.unpack_to_png(filenames[hl2ss.StreamPort.PERSONAL_VIDEO], os.path.join(path, 'personal_video.tar'))
-
     # Unpack stream metadata and numeric payloads to csv ----------------------
     for port in ports:
         input_filename = filenames[port]
         output_filename = input_filename[:input_filename.rfind('.bin')] + '.csv'
         hl2ss_utilities.unpack_to_csv(input_filename, output_filename)
 
+    # Unpack RM Depth Long Throw to a tar file containing Depth and AB PNGs ---
+    if (hl2ss.StreamPort.RM_DEPTH_LONGTHROW in ports):
+        hl2ss_utilities.unpack_to_png(filenames[hl2ss.StreamPort.RM_DEPTH_LONGTHROW], os.path.join(path, 'long_throw.tar'))
+        hl2ss_utilities.unpack_to_png(filenames[hl2ss.StreamPort.PERSONAL_VIDEO], os.path.join(path, 'personal_video.tar'))

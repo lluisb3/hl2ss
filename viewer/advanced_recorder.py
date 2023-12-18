@@ -4,7 +4,7 @@
 # Press space to stop.
 #------------------------------------------------------------------------------
 
-from pynput import keyboard
+# from pynput import keyboard
 
 import numpy as np
 import multiprocessing as mp
@@ -78,16 +78,16 @@ def main():
 
     # Keyboard events ---------------------------------------------------------
     # While loop enable until press space
-    global enable
+    # global enable
     enable = True
 
-    def on_press(key):
-        global enable
-        enable = key != keyboard.Key.space
-        return enable
+    # def on_press(key):
+    #     global enable
+    #     enable = key != keyboard.Key.space
+    #     return enable
 
-    listener = keyboard.Listener(on_press=on_press)
-    listener.start()
+    # listener = keyboard.Listener(on_press=on_press)
+    # listener.start()
 
     # Start PV subsystem ------------------------------------------------------
     hl2ss_lnm.start_subsystem_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO)
@@ -125,7 +125,7 @@ def main():
             open3d_meshes += mesh
 
     if open3d_meshes is None:
-        print("Mesh not found. Nothing to save")
+        print("===== Mesh not found. Nothing to save =====")
     else:
         # Rotation mesh z-up axis
         open3d_meshes.rotate(rotation_z_up, center=(0, 0, 0))
@@ -134,23 +134,30 @@ def main():
         mesh_file = f"{output_path}/{exp_name}_mesh.ply"
         o3d.io.write_triangle_mesh(mesh_file, open3d_meshes)
         ply_double_to_float(mesh_file)
-        print(f"Mesh saved in {mesh_file}")
+        print(f"===== Mesh saved in {mesh_file} =====")
     
     # Start streams -----------------------------------------------------------
     producer = hl2ss_mp.producer()
     producer.configure(hl2ss.StreamPort.PERSONAL_VIDEO, hl2ss_lnm.rx_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO, width=pv_width, height=pv_height, framerate=pv_framerate, decoded_format='rgb24'))
     producer.configure(hl2ss.StreamPort.RM_DEPTH_LONGTHROW, hl2ss_lnm.rx_rm_depth_longthrow(host, hl2ss.StreamPort.RM_DEPTH_LONGTHROW))
+    producer.configure(hl2ss.StreamPort.SPATIAL_INPUT, hl2ss_lnm.rx_si(host, hl2ss.StreamPort.SPATIAL_INPUT))
+
     producer.initialize(hl2ss.StreamPort.PERSONAL_VIDEO, buffer_size * pv_framerate)
-    producer.initialize(hl2ss.StreamPort.RM_DEPTH_LONGTHROW, buffer_size * hl2ss.Parameters_RM_DEPTH_LONGTHROW.FPS)    
+    producer.initialize(hl2ss.StreamPort.RM_DEPTH_LONGTHROW, buffer_size * hl2ss.Parameters_RM_DEPTH_LONGTHROW.FPS) 
+    producer.initialize(hl2ss.StreamPort.SPATIAL_INPUT, hl2ss.Parameters_SI.SAMPLE_RATE * buffer_size)   
+    
     producer.start(hl2ss.StreamPort.PERSONAL_VIDEO)
     producer.start(hl2ss.StreamPort.RM_DEPTH_LONGTHROW)
+    producer.start(hl2ss.StreamPort.SPATIAL_INPUT) 
 
     consumer = hl2ss_mp.consumer()
     manager = mp.Manager()
     sink_pv = consumer.create_sink(producer, hl2ss.StreamPort.PERSONAL_VIDEO, manager, None)
     sink_lt = consumer.create_sink(producer, hl2ss.StreamPort.RM_DEPTH_LONGTHROW, manager, ...)
+    sink_si = consumer.create_sink(producer, hl2ss.StreamPort.SPATIAL_INPUT, manager, None)
     sink_pv.get_attach_response()
     sink_lt.get_attach_response()
+    sink_si.get_attach_response()
 
     # Create integrator -------------------------------------------------------
     integrator = hl2ss_sa.integrator(voxel_size, block_resolution, block_count, device)
@@ -168,7 +175,7 @@ def main():
 
     # Main loop ---------------------------------------------------------------
     print('===== Recording started. =====')
-    print('===== Press space to stop recording... =====')
+    print('===== Place BOTH HANDS in front of the Hololens2 to STOP recording... =====')
     while(enable):
         
         # Get frames ----------------------------------------------------------
@@ -180,11 +187,15 @@ def main():
         _, data_pv = sink_pv.get_nearest(data_lt.timestamp)
         if ((data_pv is None) or (not hl2ss.is_valid_pose(data_pv.pose))):
             continue
+        _, data_si = sink_si.get_nearest(data_lt.timestamp)
+        if (data_si is None):
+            continue
 
         # Integrate -----------------------------------------------------------
         depth = hl2ss_3dcv.rm_depth_undistort(data_lt.payload.depth, calibration_lt.undistort_map)
         depth = hl2ss_3dcv.rm_depth_normalize(depth, scale)
         color = data_pv.payload.image
+        si = hl2ss.unpack_si(data_si.payload)
 
         pv_intrinsics = hl2ss.update_pv_intrinsics(pv_intrinsics, data_pv.payload.focal_length, data_pv.payload.principal_point)
         color_intrinsics, color_extrinsics = hl2ss_3dcv.pv_fix_calibration(pv_intrinsics, pv_extrinsics)
@@ -222,12 +233,16 @@ def main():
             pcd.colors = pcd_tmp.colors
             # vis.update_geometry(pcd)
 
+        if (si.is_valid_hand_left()) and (si.is_valid_hand_right()):
+            print("===== Hands detected =====")
+            print('===== Stop recording... =====')
+            break
+
         # vis.poll_events()
         # vis.update_renderer()
 
     # Stop keyboard events ----------------------------------------------------
-    print('===== Stop recording... =====')
-    listener.join()
+    # listener.join()
 
     pcd.colors = o3d.utility.Vector3dVector(np.clip(np.asarray(pcd.colors), 0, 1))
     pcd.estimate_normals()
@@ -238,13 +253,15 @@ def main():
     pcd_file = f"{output_path}/{exp_name}_pcd.ply"
     o3d.io.write_point_cloud(pcd_file, pcd)
     ply_double_to_float(pcd_file)
-    print(f"Pcd saved in {pcd_file}")
+    print(f"===== Pcd saved in {pcd_file} =====")
     
     # Stop streams ------------------------------------------------------------
     sink_pv.detach()
-    sink_lt.detach()    
+    sink_lt.detach()  
+    sink_si.detach()  
     producer.stop(hl2ss.StreamPort.PERSONAL_VIDEO)
     producer.stop(hl2ss.StreamPort.RM_DEPTH_LONGTHROW)
+    producer.stop(hl2ss.StreamPort.SPATIAL_INPUT)
 
     # Stop PV subsystem -------------------------------------------------------
     hl2ss_lnm.stop_subsystem_pv(host, hl2ss.StreamPort.PERSONAL_VIDEO)
@@ -262,6 +279,7 @@ def main():
     xyzrgb_pcd = xyz_rgb_from_ply(pcd_file).T
     pcd_df = pd.DataFrame(xyzrgb_pcd, columns=header)
     pcd_df.to_csv(f"{output_path}/xyz_rgb_pcd.csv")
+    print(f"===== Pointcloud coords and RGB values saved in {pcd_file} =====")
 
 
 if __name__ == '__main__':

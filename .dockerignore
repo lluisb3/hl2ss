@@ -1,1 +1,6 @@
 data/*
+viewer/advanced_recorder_depth_diamond.py
+viewer/mesh_scene.py
+viewer/pcd_per_frame.py
+viewer/pcd_registered.py
+viewer/pcd_scene.py

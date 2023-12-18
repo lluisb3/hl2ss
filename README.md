@@ -200,17 +200,17 @@ Clone the GitHub repository.
 git clone https://github.com/lluisb3/hl2ss.git
 ```
 
-#### Pull docker image 
+#### Pull docker image
 ```bash
 sudo docker pull lluisb3/hl2ss:v5.0
 ```
 
-#### Run bash file to record an scene and obtain pointcloud and mesh
-Once the path are modified run docker compose. (Important to change the IP_HOLOLENS variable to the IP displayed on the Hololens2 once inside the hl2ss application).
+#### Run bash file to record a 3D scene
+Once the path are modified run docker compose. (Important to change the IP_HOLOLENS variable to the IP displayed on the Hololens2 once inside the hl2ss application). If you want to change the output path take a look to the docker-entrypoint_linux.sh file (Linux) or docker-entrypoint_win.cmd file (Windows) and modify the volume flag (-v) with the desired output path.
 ```bash
 bash docker-entrypoint_linux.sh
 ```
-This script outputs the pointcloud scanned and mesh (if detected) in the docker_volume folder on the home directory.
+This script outputs the pointcloud scanned and mesh (if detected) in the output folder (by default on Linux is it saved in the docker_volume folder in the home directory).
 
 ## Known issues and limitations
 
