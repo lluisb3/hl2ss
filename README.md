@@ -210,7 +210,7 @@ Once the path are modified run docker compose. (Important to change the IP_HOLOL
 ```bash
 bash docker-entrypoint_linux.sh
 ```
-This script outputs the pointcloud scanned and mesh (if detected) in the output folder (by default on Linux is it saved in the docker_volume folder in the home directory).
+This script outputs the pointcloud scanned and mesh (if detected) in the output folder (by default on Linux is it saved in the docker_volumes folder in the home directory).
 
 ## Known issues and limitations
 

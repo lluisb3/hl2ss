@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
-# This script demonstrates how to align RGBD and Spatial Mapping data.
-# RGBD integration is dynamic.
-# Press space to stop.
+# This script ables Hololens2 to record a scene and computes the pointcloud
+# ane mesh (if detected) to obtain a 3D scene. 
+# Place 2 hands in front of Hololens2 to stop recording.
 #------------------------------------------------------------------------------
 
 # from pynput import keyboard
@@ -79,7 +79,7 @@ def main():
     # Keyboard events ---------------------------------------------------------
     # While loop enable until press space
     # global enable
-    enable = True
+    # enable = True
 
     # def on_press(key):
     #     global enable
@@ -109,6 +109,7 @@ def main():
     sm_manager.close()
     meshes = sm_manager.get_meshes()
 
+    # Combine detected meshes into one ---------------------------------------
     first_mesh = True
     open3d_meshes = None
     meshes = [hl2ss_sa.sm_mesh_to_open3d_triangle_mesh(mesh) for mesh in meshes]
@@ -134,7 +135,7 @@ def main():
         mesh_file = f"{output_path}/{exp_name}_mesh.ply"
         o3d.io.write_triangle_mesh(mesh_file, open3d_meshes)
         ply_double_to_float(mesh_file)
-        print(f"===== Mesh saved in {mesh_file} =====")
+        print(f"===== Mesh saved =====")
     
     # Start streams -----------------------------------------------------------
     producer = hl2ss_mp.producer()
@@ -173,12 +174,13 @@ def main():
     # vis.create_window()
     # vis.get_render_option().mesh_show_back_face = True
 
-    # Main loop ---------------------------------------------------------------
-    print('===== Recording started. =====')
+    # Main loop ----------------------------------------------------------------
+    print('===== Recording started =====')
     print('===== Place BOTH HANDS in front of the Hololens2 to STOP recording... =====')
-    while(enable):
-        
-        # Get frames ----------------------------------------------------------
+
+    while True:
+
+        # Get frames ------------------------------------------------------------
         sink_lt.acquire()
 
         _, data_lt = sink_lt.get_most_recent_frame()
@@ -196,6 +198,12 @@ def main():
         depth = hl2ss_3dcv.rm_depth_normalize(depth, scale)
         color = data_pv.payload.image
         si = hl2ss.unpack_si(data_si.payload)
+
+        # If both hand detected stop recording
+        if (si.is_valid_hand_left()) and (si.is_valid_hand_right()):
+            print("===== Hands detected =====")
+            print('===== Stop recording... =====')
+            break
 
         pv_intrinsics = hl2ss.update_pv_intrinsics(pv_intrinsics, data_pv.payload.focal_length, data_pv.payload.principal_point)
         color_intrinsics, color_extrinsics = hl2ss_3dcv.pv_fix_calibration(pv_intrinsics, pv_extrinsics)
@@ -233,17 +241,13 @@ def main():
             pcd.colors = pcd_tmp.colors
             # vis.update_geometry(pcd)
 
-        if (si.is_valid_hand_left()) and (si.is_valid_hand_right()):
-            print("===== Hands detected =====")
-            print('===== Stop recording... =====')
-            break
-
         # vis.poll_events()
         # vis.update_renderer()
 
     # Stop keyboard events ----------------------------------------------------
     # listener.join()
 
+    # Clip colors and rotate to obtain pointcloud in z-up axis
     pcd.colors = o3d.utility.Vector3dVector(np.clip(np.asarray(pcd.colors), 0, 1))
     pcd.estimate_normals()
 
@@ -253,7 +257,7 @@ def main():
     pcd_file = f"{output_path}/{exp_name}_pcd.ply"
     o3d.io.write_point_cloud(pcd_file, pcd)
     ply_double_to_float(pcd_file)
-    print(f"===== Pcd saved in {pcd_file} =====")
+    print(f"===== Pointcloud saved =====")
     
     # Stop streams ------------------------------------------------------------
     sink_pv.detach()
@@ -269,17 +273,24 @@ def main():
     # Show final point cloud --------------------------------------------------
     # vis.run()
 
-    # Save coordinares and rgb values for each point in pcd and mesh ----------
-    header = ["x", "y", "z", "r", "g", "b"]
+    # Save coordinares and rgb values for each point in pcd and vertex in mesh ----------
+    header = ["X", "Y", "Z", "R", "G", "B"]
 
-    xyzrgb_mesh = xyz_rgb_from_ply(mesh_file).T
-    mesh_df = pd.DataFrame(xyzrgb_mesh, columns=header)
-    mesh_df.to_csv(f"{output_path}/xyz_rgb_mesh.csv")
+    if open3d_meshes is None:
+        xyzrgb_pcd = xyz_rgb_from_ply(pcd_file).T
+        pcd_df = pd.DataFrame(xyzrgb_pcd, columns=header)
+        pcd_df.to_csv(f"{output_path}/xyz_rgb_pcd.csv")
+        print(f"===== Pointcloud coords and RGB values saved in .csv file =====")
 
-    xyzrgb_pcd = xyz_rgb_from_ply(pcd_file).T
-    pcd_df = pd.DataFrame(xyzrgb_pcd, columns=header)
-    pcd_df.to_csv(f"{output_path}/xyz_rgb_pcd.csv")
-    print(f"===== Pointcloud coords and RGB values saved in {pcd_file} =====")
+    else:
+        xyzrgb_mesh = xyz_rgb_from_ply(mesh_file).T
+        mesh_df = pd.DataFrame(xyzrgb_mesh, columns=header)
+        mesh_df.to_csv(f"{output_path}/xyz_rgb_mesh.csv")
+
+        xyzrgb_pcd = xyz_rgb_from_ply(pcd_file).T
+        pcd_df = pd.DataFrame(xyzrgb_pcd, columns=header)
+        pcd_df.to_csv(f"{output_path}/xyz_rgb_pcd.csv")
+        print(f"===== Pointcloud and Mesh coords and RGB values saved in .csv files =====")
 
 
 if __name__ == '__main__':
