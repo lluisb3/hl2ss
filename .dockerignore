@@ -4,3 +4,6 @@ viewer/mesh_scene.py
 viewer/pcd_per_frame.py
 viewer/pcd_registered.py
 viewer/pcd_scene.py
+build.log
+.git
+__pycache__

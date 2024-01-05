@@ -1,21 +1,44 @@
-FROM python:3.9
+FROM ubuntu:22.04
 
-USER root
+# Set timezone to not be interactive the python installation
+ENV TZ=Europe/Madrid
 
-RUN apt-get update
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-RUN apt-get install -y libgl1
+# Set non-root user as user
+ARG USER_ID
+ARG GROUP_ID
 
-RUN mkdir -p /home/app
+RUN apt-get update && \
+    apt-get install -y sudo && \
+    addgroup --gid $GROUP_ID user && \
+    adduser --uid $USER_ID --gid $GROUP_ID --disabled-password --gecos "Default user" user && \
+    echo 'user ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
-RUN mkdir -p /home/app/data
+USER user
 
-COPY . /home/app
+# Install necesary libraries
+RUN sudo apt-get install -y libgl1
 
-WORKDIR /home/app
+# Install Python and git
+RUN sudo apt-get install -y python3.9 python3-pip git-all
 
-RUN chmod u+rwx viewer/*
+ENV PATH=/home/user/.local/bin:$PATH
 
-RUN pip install -r requirements.txt
+# Creat hl2ss app folder
+RUN mkdir -p /home/user/app
 
+RUN mkdir -p /home/user/app/data
+
+# Set workdirectory to hl2ss app
+WORKDIR /home/user/app
+
+# Copy files and set user ownership of the files in app folder
+COPY --chown=user:user . /home/user/app
+RUN chmod -R u+rwx /home/user/app
+
+# Install necesary requeriments
+RUN pip3 install -r requirements.txt
+
+# Run bash as entrypoint
 CMD [ "/bin/bash" ]

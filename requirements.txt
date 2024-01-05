@@ -50,7 +50,6 @@ parso==0.8.3
 pexpect==4.8.0
 pickleshare==0.7.5
 Pillow==10.1.0
-pip==23.3
 platformdirs==3.11.0
 plotly==5.17.0
 plyfile==1.0.1
