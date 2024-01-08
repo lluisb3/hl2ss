@@ -18,7 +18,7 @@ RUN apt-get update && \
 USER user
 
 # Install necesary libraries
-RUN sudo apt-get install -y libgl1
+RUN sudo apt-get install -y libgl1 libglib2.0-0
 
 # Install Python and git
 RUN sudo apt-get install -y python3.9 python3-pip git-all
