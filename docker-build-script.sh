@@ -1,4 +1,5 @@
 #!/bin/sh
+# For Ubuntu devices #
 # bash script to create image mapping host user's ID with non-root user in the container #
 
 IMAGE=lluisb3/hl2ss:v9.0

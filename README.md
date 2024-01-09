@@ -188,10 +188,45 @@ The server application will remain installed on the HoloLens even after power of
 If you wish to create the server application appxbundle, right click the hl2ss project and select Publish -> Create App Packages.
 
 ## Docker
-Run hl2ss as docker image to obtain a pointcloud and mesh file (.ply format) using the Hololens2. Follow this steps on Ubuntu to run the image correctly. (First follow the previous steps that describe how to connect with the Hololens2 to access the data) This image and this repository provides extra functions to obtain the pointcloud and mesh.
+Run hl2ss as docker image to obtain a pointcloud and mesh file (.ply format) using the Hololens2. [First follow the previous steps that describe how to connect the device with the Hololens2 to access its data](#installation-sideloading). This image and this repository provides extra functions to obtain the pointcloud and mesh.
 
-#### Install docker:
-https://docs.docker.com/engine/install/ubuntu/
+
+### Ubuntu
+Follow this steps on Ubuntu to run the image correctly.
+
+
+#### Install Docker:
+[Install Docker](https://docs.docker.com/engine/install/ubuntu/) and perform the [post-installation](https://docs.docker.com/engine/install/linux-postinstall/) steps to manage Docker as non-root user.
+
+
+#### Clone Git repository
+Clone the GitHub repository.
+```bash
+git clone https://github.com/lluisb3/hl2ss.git
+```
+
+#### Build or Pull docker image
+(recommended) Build docker image using Dockerfile in the git repository. It is recommended in order to map the IDs of the non-root user in the container and the user in the host machine.
+```bash
+bash docker-build-script.sh
+```
+Pull docker image in this case set to tag v9.0. Check for other tags on Docker Hub. (User ID in the image 1000:1000)
+```bash
+docker pull lluisb3/hl2ss:v9.0
+```
+
+#### Run docker compose to record a 3D scene
+Run docker compose. First, set the environment variables in the .env file (Important to change the IP_HOLOLENS variable to the IP displayed on the Hololens2 once inside the [hl2ss application](#installation-sideloading)).
+```bash
+docker compose up
+```
+This script outputs the pointcloud scanned and mesh (if detected) in the output folder together with a .csv file with the coordinates of every point or vertex and RGB values.
+
+### Windows 
+Follow this steps on Windows to run the image correctly (tested on Windows 11).
+
+#### Install Docker Desktop:
+[Install Docker Desktop](https://docs.docker.com/desktop/install/windows-install/) for Windows.
 
 
 #### Clone Git repository
@@ -201,16 +236,19 @@ git clone https://github.com/lluisb3/hl2ss.git
 ```
 
 #### Pull docker image
-```bash
-sudo docker pull lluisb3/hl2ss:v5.0
+Pull docker image using the Docker Desktop app or command line.
+```
+lluisb3/hl2ss:v9.0
 ```
 
-#### Run bash file to record a 3D scene
-Once the path are modified run docker compose. (Important to change the IP_HOLOLENS variable to the IP displayed on the Hololens2 once inside the hl2ss application). If you want to change the output path take a look to the docker-entrypoint_linux.sh file (Linux) or docker-entrypoint_win.cmd file (Windows) and modify the volume flag (-v) with the desired output path.
+#### Run docker compose to record a 3D scene
+Run docker compose. First, set the environment variables in the .env file (Important to change the IP_HOLOLENS variable to the IP displayed on the Hololens2 once inside the [hl2ss application](#installation-sideloading)).
+Change the OUTPUT_PATH variable to the desired directory in your machine.
 ```bash
-bash docker-entrypoint_linux.sh
+docker compose up
 ```
-This script outputs the pointcloud scanned and mesh (if detected) in the output folder (by default on Linux is it saved in the docker_volumes folder in the home directory).
+This script outputs the pointcloud scanned and mesh (if detected) in the output folder together with a .csv file with the coordinates of every point or vertex and RGB values.
+
 
 ## Known issues and limitations
 
