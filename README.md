@@ -242,7 +242,7 @@ lluisb3/hl2ss:v9.0
 ```
 
 #### Run docker compose to record a 3D scene
-Run docker compose. First, set the environment variables in the .env file (Important to change the IP_HOLOLENS variable to the IP displayed on the Hololens2 once inside the [hl2ss application](#installation-sideloading)). Change the OUTPUT_PATH variable to the desired directory in your machine.
+Run docker compose. First, set the environment variables in the .env file (Important to change the IP_HOLOLENS variable to the IP displayed on the Hololens2 once inside the [hl2ss application](#installation-sideloading)). Change the OUTPUT_PATH variable to the desired directory in your machine. In the volumes section folders in host machine MUST exist before running (if not they are created as root user and you will experience permission errors to save the output files).
 ```bash
 docker compose up
 ```
