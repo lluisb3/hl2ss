@@ -12,5 +12,3 @@ services:
       - ${OUTPUT_PATH}:/home/user/app/data
     container_name: pointcloud
     entrypoint: ["python3", "-u", "viewer/advanced_recorder.py", "--exp_name", "$EXP_NAME", "--ip_hololens", "$IP_HOLOLENS"]
-
-
