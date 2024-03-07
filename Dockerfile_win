@@ -1,0 +1,36 @@
+FROM ubuntu:22.04
+
+# To not cache the packages
+RUN echo "[install]\ncompile = no\n\n[global]\nno-cache-dir = True" > /etc/pip.conf
+
+# Set timezone to not be interactive the python installation
+ENV TZ=Europe/Madrid
+
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+USER root
+
+# Install necesary libraries
+RUN apt-get install -y libgl1 libglib2.0-0
+
+# Install Python and git
+RUN apt-get install -y python3.9 python3-pip git-all
+
+ENV PATH=/home/user/.local/bin:$PATH
+
+# Creat hl2ss app folder
+RUN mkdir -p /home/user/app
+
+RUN mkdir -p /home/user/app/data
+
+# Set workdirectory to hl2ss app
+WORKDIR /home/user/app
+
+# Copy files and set user ownership of the files in app folder
+COPY . /home/user/app
+
+# Install necesary requeriments
+RUN pip3 install -r requirements.txt
+
+# Run bash as entrypoint
+CMD [ "/bin/bash" ]

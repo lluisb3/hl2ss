@@ -134,6 +134,8 @@ def main():
         # Save mesh
         mesh_file = f"{output_path}/{exp_name}_mesh.ply"
         o3d.io.write_triangle_mesh(mesh_file, open3d_meshes)
+        mesh_file_obj = f"{output_path}/{exp_name}_mesh.obj"
+        o3d.io.write_triangle_mesh(mesh_file_obj, open3d_meshes)
         ply_double_to_float(mesh_file)
         print(f"===== Mesh saved =====")
     
@@ -253,11 +255,33 @@ def main():
 
     pcd.rotate(rotation_z_up, center=(0, 0, 0))
 
+    with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug) as cm:
+        mesh_from_pcd, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+        pcd, depth=9)
+
+    radii = [0.005, 0.01, 0.02, 0.04]
+    rec_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
+        pcd, o3d.utility.DoubleVector(radii))
+
     # Save pcd
     pcd_file = f"{output_path}/{exp_name}_pcd.ply"
     o3d.io.write_point_cloud(pcd_file, pcd)
     ply_double_to_float(pcd_file)
     print(f"===== Pointcloud saved =====")
+
+    # Save mesh from pointcloud
+    mesh_pcd_file = f"{output_path}/{exp_name}_pcd2mesh.ply"
+    o3d.io.write_triangle_mesh(mesh_pcd_file, mesh_from_pcd)
+    mesh_pcd_obj_file = f"{output_path}/{exp_name}_pcd2mesh.obj"
+    o3d.io.write_triangle_mesh(mesh_pcd_obj_file, mesh_from_pcd)
+    ply_double_to_float(mesh_pcd_file)
+
+    mesh_pcd_file_ball_piv = f"{output_path}/{exp_name}_pcd2mesh_ball_piv.ply"
+    o3d.io.write_triangle_mesh(mesh_pcd_file_ball_piv, rec_mesh)
+    mesh_pcd_obj_file_ball_piv = f"{output_path}/{exp_name}_pcd2mesh_ball_piv.obj"
+    o3d.io.write_triangle_mesh(mesh_pcd_obj_file_ball_piv, rec_mesh)
+    ply_double_to_float(mesh_pcd_file_ball_piv)
+    print(f"===== Mesh from Pointcloud saved =====")
     
     # Stop streams ------------------------------------------------------------
     sink_pv.detach()
