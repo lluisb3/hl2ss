@@ -1,5 +1,8 @@
 FROM ubuntu:22.04
 
+# Not cache pip packages
+RUN echo "[install]\ncompile = no\n\n[global]\nno-cache-dir = True" > /etc/pip.conf
+
 # Set timezone to not be interactive the python installation
 ENV TZ=Europe/Madrid
 

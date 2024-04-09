@@ -28,6 +28,9 @@ thispath = Path(__file__).resolve()
 def main():
     # Settings --------------------------------------------------------------------
 
+    # Avoid unnecessary warnings Open3D
+    o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Error)
+
     # Create the parser
     parser = argparse.ArgumentParser()
     # Add arguments
@@ -72,6 +75,14 @@ def main():
                     [0.0, 0.0, 1.0],
                     [-0.0, 1.0, -0.0]))
     
+    # Rotation matrices to coordinate system in Unity
+    rotation_unity = np.array(([1.0, 0.0, 0.0],
+                    [0.0, 0.0, -1.0],
+                    [0.0, -1.0, 0.0]))
+    
+    rotation_unity_2 = np.array(([-1.0, -0.0, 0.0],
+                    [0.0, -1.0, 0.0],
+                    [0.0, 0.0, 1.0]))
     # Output folder
     output_path = f"{thispath.parent.parent}/data/{exp_name}"
     Path(output_path).mkdir(parents=True, exist_ok=True)
@@ -126,15 +137,15 @@ def main():
             open3d_meshes += mesh
 
     if open3d_meshes is None:
-        print("===== Mesh not found. Nothing to save =====")
+        print("===== Memory Mesh not found. Nothing to save =====")
     else:
-        # Rotation mesh z-up axis
-        open3d_meshes.rotate(rotation_z_up, center=(0, 0, 0))
+        # Rotation to Unity coordinate system
+        open3d_meshes.rotate(rotation_unity_2, center=(0, 0, 0))
 
         # Save mesh
-        mesh_file = f"{output_path}/{exp_name}_mesh.ply"
+        mesh_file = f"{output_path}/{exp_name}_memory_mesh.ply"
         o3d.io.write_triangle_mesh(mesh_file, open3d_meshes)
-        mesh_file_obj = f"{output_path}/{exp_name}_mesh.obj"
+        mesh_file_obj = f"{output_path}/{exp_name}_memory_mesh.obj"
         o3d.io.write_triangle_mesh(mesh_file_obj, open3d_meshes)
         ply_double_to_float(mesh_file)
         print(f"===== Mesh saved =====")
@@ -255,13 +266,21 @@ def main():
 
     pcd.rotate(rotation_z_up, center=(0, 0, 0))
 
-    with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug) as cm:
-        mesh_from_pcd, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-        pcd, depth=9)
+    # with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug) as cm:
+    #     mesh_from_pcd, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+    #     pcd, depth=9)
 
+    # Compute the mesh from the PointCloud using ball pivoting algorithm
+    print(f"===== Transforming recorded PointCloud to Mesh... =====")
     radii = [0.005, 0.01, 0.02, 0.04]
     rec_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
         pcd, o3d.utility.DoubleVector(radii))
+    
+    print(f"===== Transformation complete =====")
+    
+    # Rotate to Unity coordinate system
+    rec_mesh.rotate(rotation_unity, center=(0, 0, 0))
+    rec_mesh.rotate(rotation_unity_2, center=(0, 0, 0))
 
     # Save pcd
     pcd_file = f"{output_path}/{exp_name}_pcd.ply"
@@ -270,12 +289,13 @@ def main():
     print(f"===== Pointcloud saved =====")
 
     # Save mesh from pointcloud
-    mesh_pcd_file = f"{output_path}/{exp_name}_pcd2mesh.ply"
-    o3d.io.write_triangle_mesh(mesh_pcd_file, mesh_from_pcd)
-    mesh_pcd_obj_file = f"{output_path}/{exp_name}_pcd2mesh.obj"
-    o3d.io.write_triangle_mesh(mesh_pcd_obj_file, mesh_from_pcd)
-    ply_double_to_float(mesh_pcd_file)
+    # mesh_pcd_file = f"{output_path}/{exp_name}_pcd2mesh.ply"
+    # o3d.io.write_triangle_mesh(mesh_pcd_file, mesh_from_pcd)
+    # mesh_pcd_obj_file = f"{output_path}/{exp_name}_pcd2mesh.obj"
+    # o3d.io.write_triangle_mesh(mesh_pcd_obj_file, mesh_from_pcd)
+    # ply_double_to_float(mesh_pcd_file)
 
+    # Save mesh from pointcloud using the ball pivoting algorithm
     mesh_pcd_file_ball_piv = f"{output_path}/{exp_name}_pcd2mesh_ball_piv.ply"
     o3d.io.write_triangle_mesh(mesh_pcd_file_ball_piv, rec_mesh)
     mesh_pcd_obj_file_ball_piv = f"{output_path}/{exp_name}_pcd2mesh_ball_piv.obj"
