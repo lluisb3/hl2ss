@@ -25,3 +25,5 @@ calibration/*
 !/calibration/README.md
 data/*
 build.log
+output_video/*
+
